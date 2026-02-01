@@ -10,7 +10,7 @@
   --color-surface: #fff7f0;
   --color-surface-strong: #ffffff;
   --color-text: #1c1c1f;
-  --color-muted: #5d5d63;
+  --color-text-muted: #5d5d63;
   --color-accent: #ff6b4a;
   --color-accent-2: #2ec4b6;
   --color-accent-soft: #ffd6b0;
@@ -23,9 +23,37 @@
 
   --animate-floatIn: floatIn 0.8s ease-out both;
   --animate-floatInDelayed: floatIn 0.9s ease-out both 0.1s;
+
+  --color-background: var(--color-bg-1);
+  --color-foreground: var(--color-text);
+  --color-card: var(--color-surface);
+  --color-card-foreground: var(--color-text);
+  --color-popover: var(--color-surface-strong);
+  --color-popover-foreground: var(--color-text);
+  --color-primary: var(--color-text);
+  --color-primary-foreground: #ffffff;
+  --color-secondary: var(--color-bg-3);
+  --color-secondary-foreground: var(--color-text);
+  --color-muted: var(--color-bg-2);
+  --color-muted-foreground: var(--color-text-muted);
+  --color-accent-foreground: #ffffff;
+  --color-destructive: #dc2626;
+  --color-destructive-foreground: #ffffff;
+  --color-border: #e6dcd3;
+  --color-input: #efe4db;
+  --color-ring: var(--color-accent);
+  --radius: 0.75rem;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
 }
 
 @layer base {
+  * {
+    @apply border-border;
+  }
+
   body {
     @apply min-h-screen bg-app font-sans text-text antialiased;
   }
