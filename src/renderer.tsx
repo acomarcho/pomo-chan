@@ -254,7 +254,7 @@ const App = () => {
   };
   const handleSwitchMode = () => {
     const nextMode: Mode = mode === "focus" ? "break" : "focus";
-    if (isRunning) {
+    if (isRunning || remaining !== total) {
       setPendingMode(nextMode);
       setIsConfirmOpen(true);
       return;
