@@ -25,11 +25,7 @@ module.exports = {
         project: [path.join(__dirname, "tsconfig.json")],
       },
       alias: {
-        map: [
-          ["@/lib", path.join(__dirname, "src/lib")],
-          ["@/components", path.join(__dirname, "src/components")],
-          ["@", path.join(__dirname, "src")],
-        ],
+        map: [["@", path.join(__dirname, "src")]],
         extensions: [".ts", ".tsx", ".js", ".jsx", ".json"],
       },
     },
