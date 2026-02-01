@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import * as PIXI from "pixi.js";
 import { Live2DModel } from "pixi-live2d-display";
+import { Button } from "@/components/ui/button";
 import "./styles/globals.css";
 
 (window as typeof window & { PIXI?: typeof PIXI }).PIXI = PIXI;
@@ -240,20 +241,21 @@ const App = () => {
         </section>
 
         <section className="flex items-center justify-center gap-3 pb-2 pt-4">
-          <button
-            className="rounded-full bg-gray-900 px-6 py-2.5 text-sm font-semibold text-white transition active:scale-[0.98]"
+          <Button
+            className="rounded-full px-6 py-2.5 text-sm font-semibold"
             type="button"
             onClick={handleToggle}
           >
             {primaryLabel}
-          </button>
-          <button
-            className="rounded-full border border-gray-300 px-6 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-100 active:scale-[0.98]"
+          </Button>
+          <Button
+            className="rounded-full px-6 py-2.5 text-sm font-semibold"
+            variant="outline"
             type="button"
             onClick={handleSwitchMode}
           >
             {switchLabel}
-          </button>
+          </Button>
         </section>
       </div>
     </div>
