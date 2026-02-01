@@ -2,7 +2,9 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import * as PIXI from "pixi.js";
 import { Live2DModel } from "pixi-live2d-display";
-import "./index.css";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import "./styles/globals.css";
 
 (window as typeof window & { PIXI?: typeof PIXI }).PIXI = PIXI;
 
@@ -176,11 +178,6 @@ const App = () => {
   const showResume = !isRunning && remaining !== total;
   const primaryLabel = isRunning ? "Pause" : showResume ? "Resume" : "Start";
   const switchLabel = mode === "focus" ? "Break" : "Focus";
-  const toggleTrackClass = isAlwaysOnTop ? "bg-gray-900" : "bg-gray-300";
-  const toggleThumbClass = isAlwaysOnTop
-    ? "translate-x-4 bg-white"
-    : "translate-x-0 bg-white";
-
   const handleToggle = () => setIsRunning((prev) => !prev);
   const handleSwitchMode = () => {
     const nextMode: Mode = mode === "focus" ? "break" : "focus";
@@ -188,11 +185,10 @@ const App = () => {
     setMode(nextMode);
     setRemaining(MODES[nextMode].seconds);
   };
-  const handleAlwaysOnTop = async () => {
+  const handleAlwaysOnTop = async (next: boolean) => {
     const api = window.electronAPI?.alwaysOnTop;
     if (!api) return;
     const previous = isAlwaysOnTop;
-    const next = !previous;
     setIsAlwaysOnTop(next);
     try {
       const confirmed = await api.set(next);
@@ -207,19 +203,12 @@ const App = () => {
     <div className="flex min-h-screen flex-col bg-white px-4 py-4 text-gray-900">
       <div className="fixed right-3 top-3 z-20 flex items-center gap-2 rounded-full bg-white/90 px-3 py-1.5 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-gray-600 shadow-sm backdrop-blur">
         <span>Always on top</span>
-        <button
-          className={`relative h-5 w-9 rounded-full transition disabled:cursor-not-allowed disabled:opacity-60 ${toggleTrackClass}`}
-          type="button"
-          role="switch"
-          aria-checked={isAlwaysOnTop}
+        <Switch
+          checked={isAlwaysOnTop}
           aria-label="Toggle always on top"
           disabled={!isAlwaysOnTopAvailable}
-          onClick={handleAlwaysOnTop}
-        >
-          <span
-            className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full shadow transition ${toggleThumbClass}`}
-          />
-        </button>
+          onCheckedChange={handleAlwaysOnTop}
+        />
       </div>
 
       <section className="flex items-center justify-center pb-3">
@@ -240,20 +229,21 @@ const App = () => {
         </section>
 
         <section className="flex items-center justify-center gap-3 pb-2 pt-4">
-          <button
-            className="rounded-full bg-gray-900 px-6 py-2.5 text-sm font-semibold text-white transition active:scale-[0.98]"
+          <Button
+            className="rounded-full px-6 py-2.5 text-sm font-semibold"
             type="button"
             onClick={handleToggle}
           >
             {primaryLabel}
-          </button>
-          <button
-            className="rounded-full border border-gray-300 px-6 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-100 active:scale-[0.98]"
+          </Button>
+          <Button
+            className="rounded-full px-6 py-2.5 text-sm font-semibold"
+            variant="outline"
             type="button"
             onClick={handleSwitchMode}
           >
             {switchLabel}
-          </button>
+          </Button>
         </section>
       </div>
     </div>
