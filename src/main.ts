@@ -1,5 +1,5 @@
 import { app, BrowserWindow, ipcMain } from "electron";
-import { execFile } from "node:child_process";
+import activeWindow from "active-win";
 import path from "node:path";
 import started from "electron-squirrel-startup";
 
@@ -10,38 +10,20 @@ if (started) {
 
 let mainWindow: BrowserWindow | null = null;
 
-const getActiveAppName = () =>
-  new Promise<string>((resolve) => {
-    if (process.platform !== "darwin") {
-      resolve("");
-      return;
-    }
-    execFile(
-      "osascript",
-      [
-        "-e",
-        'tell application "System Events"',
-        "set frontApp to first application process whose frontmost is true",
-        "set frontAppFile to file of frontApp",
-        "set frontAppNameFallback to name of frontApp",
-        "end tell",
-        "set frontAppPath to POSIX path of frontAppFile",
-        'set frontAppName to ""',
-        "try",
-        'set frontAppName to do shell script "mdls -name kMDItemDisplayName -raw " & quoted form of frontAppPath',
-        "end try",
-        'if frontAppName is "" or frontAppName is "(null)" then set frontAppName to frontAppNameFallback',
-        "return frontAppName",
-      ],
-      (error, stdout) => {
-        if (error) {
-          resolve("");
-          return;
-        }
-        resolve(stdout.trim());
-      },
-    );
-  });
+const getActiveAppName = async () => {
+  if (process.platform !== "darwin") {
+    return "";
+  }
+  try {
+    const result = await activeWindow({
+      accessibilityPermission: false,
+      screenRecordingPermission: false,
+    });
+    return result?.owner?.name ?? "";
+  } catch (error) {
+    return "";
+  }
+};
 
 const createWindow = () => {
   // Create the browser window.
