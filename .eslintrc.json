@@ -12,13 +12,5 @@
     "plugin:import/electron",
     "plugin:import/typescript"
   ],
-  "parser": "@typescript-eslint/parser",
-  "overrides": [
-    {
-      "files": ["postcss.config.mjs"],
-      "rules": {
-        "import/no-unresolved": "off"
-      }
-    }
-  ]
+  "parser": "@typescript-eslint/parser"
 }
