@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 
@@ -7,9 +7,11 @@ if (started) {
   app.quit();
 }
 
+let mainWindow: BrowserWindow | null = null;
+
 const createWindow = () => {
   // Create the browser window.
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 360,
     height: 480,
     minWidth: 360,
@@ -33,7 +35,21 @@ const createWindow = () => {
 
   // Open the DevTools.
   mainWindow.webContents.openDevTools();
+
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+  });
 };
+
+ipcMain.handle('always-on-top:get', () => {
+  return mainWindow?.isAlwaysOnTop() ?? false;
+});
+
+ipcMain.handle('always-on-top:set', (_event, value: boolean) => {
+  if (!mainWindow) return false;
+  mainWindow.setAlwaysOnTop(Boolean(value), 'floating');
+  return mainWindow.isAlwaysOnTop();
+});
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
