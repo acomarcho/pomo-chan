@@ -20,7 +20,18 @@ const getActiveAppName = () =>
       "osascript",
       [
         "-e",
-        'tell application "System Events" to get name of first application process whose frontmost is true',
+        'tell application "System Events"',
+        "set frontApp to first application process whose frontmost is true",
+        "set frontAppFile to file of frontApp",
+        "set frontAppNameFallback to name of frontApp",
+        "end tell",
+        "set frontAppPath to POSIX path of frontAppFile",
+        'set frontAppName to ""',
+        "try",
+        'set frontAppName to do shell script "mdls -name kMDItemDisplayName -raw " & quoted form of frontAppPath',
+        "end try",
+        'if frontAppName is "" or frontAppName is "(null)" then set frontAppName to frontAppNameFallback',
+        "return frontAppName",
       ],
       (error, stdout) => {
         if (error) {
