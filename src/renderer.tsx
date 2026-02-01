@@ -298,13 +298,17 @@ const App = () => {
   useEffect(() => {
     if (!import.meta.env.DEV) return;
     const api = window.electronAPI?.activeApp;
+    console.log("api", api);
+    console.log("api.debug", api?.debug);
     if (!api?.debug) return;
     api
       .debug()
       .then((info) => {
         console.log("Active app debug", info);
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.error("Active app debug error", err);
+      });
   }, []);
 
   const formattedTime = useMemo(() => formatTime(remaining), [remaining]);
