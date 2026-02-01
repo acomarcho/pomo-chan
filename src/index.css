@@ -2,9 +2,7 @@
 
 @config "../tailwind.config.cjs";
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 @layer base {
   body {

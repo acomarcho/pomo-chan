@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { createRoot } from 'react-dom/client';
-import './index.css';
+import React, { useEffect, useMemo, useState } from "react";
+import { createRoot } from "react-dom/client";
+import "./index.css";
 
-type Mode = 'focus' | 'break';
+type Mode = "focus" | "break";
 
 type ModeConfig = {
   label: string;
@@ -11,20 +11,20 @@ type ModeConfig = {
 };
 
 const MODES: Record<Mode, ModeConfig> = {
-  focus: { label: 'Focus', seconds: 25 * 60, accent: '#ff6b4a' },
-  break: { label: 'Break', seconds: 5 * 60, accent: '#2ec4b6' },
+  focus: { label: "Focus", seconds: 25 * 60, accent: "#ff6b4a" },
+  break: { label: "Break", seconds: 5 * 60, accent: "#2ec4b6" },
 };
 
-const ACCENT_SOFT = '#ffd6b0';
+const ACCENT_SOFT = "#ffd6b0";
 
 const formatTime = (totalSeconds: number) => {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 };
 
 const App = () => {
-  const [mode, setMode] = useState<Mode>('focus');
+  const [mode, setMode] = useState<Mode>("focus");
   const [remaining, setRemaining] = useState(MODES.focus.seconds);
   const [isRunning, setIsRunning] = useState(false);
 
@@ -87,7 +87,8 @@ const App = () => {
           >
             {(Object.keys(MODES) as Mode[]).map((key) => {
               const isActive = mode === key;
-              const activeClasses = key === 'focus' ? 'bg-accent' : 'bg-accent-2';
+              const activeClasses =
+                key === "focus" ? "bg-accent" : "bg-accent-2";
 
               return (
                 <button
@@ -96,11 +97,11 @@ const App = () => {
                   role="tab"
                   aria-selected={isActive}
                   className={[
-                    'rounded-full px-4 py-2 text-sm font-semibold transition-all',
+                    "rounded-full px-4 py-2 text-sm font-semibold transition-all",
                     isActive
                       ? `${activeClasses} text-white shadow-glow`
-                      : 'text-text hover:bg-black/5',
-                  ].join(' ')}
+                      : "text-text hover:bg-black/5",
+                  ].join(" ")}
                   onClick={() => setMode(key)}
                 >
                   {MODES[key].label}
@@ -125,11 +126,16 @@ const App = () => {
             </div>
             <div className="grid min-w-[140px] gap-1 rounded-[18px] border border-black/10 bg-surface-strong px-4 py-3 text-left text-sm sm:text-right">
               <span className="text-muted">Session length</span>
-              <strong className="text-xl font-semibold">{Math.round(total / 60)} min</strong>
+              <strong className="text-xl font-semibold">
+                {Math.round(total / 60)} min
+              </strong>
             </div>
           </div>
 
-          <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-black/10" aria-hidden="true">
+          <div
+            className="relative h-2.5 w-full overflow-hidden rounded-full bg-black/10"
+            aria-hidden="true"
+          >
             <div
               className="absolute inset-0 origin-left rounded-full transition-transform duration-200"
               style={{
@@ -145,7 +151,7 @@ const App = () => {
               type="button"
               onClick={handleToggle}
             >
-              {isRunning ? 'Pause' : 'Start'}
+              {isRunning ? "Pause" : "Start"}
             </button>
             <button
               className="rounded-full border border-black/10 bg-transparent px-6 py-3 text-sm font-semibold text-text transition hover:bg-black/5 active:translate-y-[1px] active:scale-[0.98]"
@@ -158,10 +164,10 @@ const App = () => {
 
           <p className="text-muted">
             {remaining === 0
-              ? 'Session complete. Take a breather before the next round.'
+              ? "Session complete. Take a breather before the next round."
               : isRunning
-                ? 'Timer is running. Stay with the task.'
-                : 'Ready when you are. Press start to begin.'}
+                ? "Timer is running. Stay with the task."
+                : "Ready when you are. Press start to begin."}
           </p>
         </main>
       </div>
@@ -169,7 +175,7 @@ const App = () => {
   );
 };
 
-const root = document.getElementById('root');
+const root = document.getElementById("root");
 if (root) {
   createRoot(root).render(
     <React.StrictMode>
