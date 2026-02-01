@@ -68,7 +68,12 @@ const LIVE2D_MODEL_URL = `${import.meta.env.BASE_URL}live2d/hiyori/hiyori_pro_t1
 const LIVE2D_ZOOM = 3;
 const LIVE2D_Y_OFFSET = 0.9;
 
-const Live2DStage = () => {
+type Live2DStageProps = {
+  activeAppName?: string;
+  showActiveApp?: boolean;
+};
+
+const Live2DStage = ({ activeAppName, showActiveApp }: Live2DStageProps) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -149,6 +154,14 @@ const Live2DStage = () => {
         <span className="pointer-events-none relative z-10 text-sm font-medium text-gray-500">
           Loading model...
         </span>
+      )}
+      {showActiveApp && (
+        <div className="absolute bottom-3 left-3 z-10 flex max-w-[70%] items-center gap-2 rounded-full bg-white/90 px-3 py-1.5 text-[0.65rem] font-semibold text-gray-600 shadow-sm backdrop-blur">
+          <span className="uppercase tracking-[0.2em]">Active app</span>
+          <span className="truncate text-[0.7rem] font-medium text-gray-900">
+            {activeAppName || "Unknown"}
+          </span>
+        </div>
       )}
       <div ref={containerRef} className="absolute inset-0" />
     </div>
@@ -322,14 +335,6 @@ const App = () => {
 
   return (
     <div className="flex min-h-screen flex-col bg-white px-4 py-4 text-gray-900">
-      {isActiveAppAvailable && (
-        <div className="fixed left-3 top-3 z-20 flex max-w-[60%] items-center gap-2 rounded-full bg-white/90 px-3 py-1.5 text-[0.65rem] font-semibold text-gray-600 shadow-sm backdrop-blur">
-          <span className="uppercase tracking-[0.2em]">Active app</span>
-          <span className="max-w-[8rem] truncate text-[0.7rem] font-medium text-gray-900">
-            {activeAppName || "Unknown"}
-          </span>
-        </div>
-      )}
       <div className="fixed right-3 top-3 z-20 flex items-center gap-2 rounded-full bg-white/90 px-3 py-1.5 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-gray-600 shadow-sm backdrop-blur">
         <span>Always on top</span>
         <Switch
@@ -341,7 +346,10 @@ const App = () => {
       </div>
 
       <section className="flex items-center justify-center pb-3">
-        <Live2DStage />
+        <Live2DStage
+          activeAppName={activeAppName}
+          showActiveApp={isActiveAppAvailable}
+        />
       </section>
 
       <div className="flex flex-1 flex-col justify-end">
