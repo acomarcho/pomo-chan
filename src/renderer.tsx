@@ -62,12 +62,12 @@ const App = () => {
 
   return (
     <div className="relative min-h-screen overflow-hidden px-6 py-12">
-      <div className="pointer-events-none absolute -left-16 -top-16 h-[280px] w-[280px] rounded-full bg-[radial-gradient(circle,_rgba(255,214,176,0.85)_0%,_rgba(255,214,176,0)_70%)] opacity-50" />
-      <div className="pointer-events-none absolute -bottom-28 -right-20 h-[320px] w-[320px] rounded-full bg-[radial-gradient(circle,_rgba(46,196,182,0.28)_0%,_rgba(46,196,182,0)_70%)] opacity-50" />
-      <div className="pointer-events-none absolute left-[18%] top-[12%] h-[360px] w-[360px] rounded-full bg-[radial-gradient(circle,_rgba(255,107,74,0.18)_0%,_rgba(255,107,74,0)_60%)]" />
-      <div className="pointer-events-none absolute right-[6%] top-[6%] h-[320px] w-[320px] rounded-full bg-[radial-gradient(circle,_rgba(46,196,182,0.18)_0%,_rgba(46,196,182,0)_60%)]" />
+      <div className="pointer-events-none absolute -left-16 -top-16 h-70 w-70 rounded-full bg-[radial-gradient(circle,rgba(255,214,176,0.85)_0%,rgba(255,214,176,0)_70%)] opacity-50" />
+      <div className="pointer-events-none absolute -bottom-28 -right-20 h-80 w-[320px] rounded-full bg-[radial-gradient(circle,rgba(46,196,182,0.28)_0%,rgba(46,196,182,0)_70%)] opacity-50" />
+      <div className="pointer-events-none absolute left-[18%] top-[12%] h-90 w-90 rounded-full bg-[radial-gradient(circle,rgba(255,107,74,0.18)_0%,rgba(255,107,74,0)_60%)]" />
+      <div className="pointer-events-none absolute right-[6%] top-[6%] h-80 w-[320px] rounded-full bg-[radial-gradient(circle,rgba(46,196,182,0.18)_0%,rgba(46,196,182,0)_60%)]" />
 
-      <div className="relative z-10 mx-auto flex w-full max-w-[960px] flex-col gap-8">
+      <div className="relative z-10 mx-auto flex w-full max-w-240 flex-col gap-8">
         <header className="flex flex-wrap items-end justify-between gap-6 animate-floatIn">
           <div>
             <p className="mb-3 text-[0.7rem] uppercase tracking-[0.22em] text-muted">
@@ -76,7 +76,7 @@ const App = () => {
             <h1 className="mb-2 font-display text-[clamp(2.4rem,4vw,3.6rem)] leading-[1.05]">
               Pomodoro Focus
             </h1>
-            <p className="max-w-[420px] text-muted">
+            <p className="max-w-105 text-muted">
               A calm timer to help you work in short, deliberate bursts.
             </p>
           </div>
@@ -124,7 +124,7 @@ const App = () => {
                 {formattedTime}
               </div>
             </div>
-            <div className="grid min-w-[140px] gap-1 rounded-[18px] border border-black/10 bg-surface-strong px-4 py-3 text-left text-sm sm:text-right">
+            <div className="grid min-w-35 gap-1 rounded-[18px] border border-black/10 bg-surface-strong px-4 py-3 text-left text-sm sm:text-right">
               <span className="text-muted">Session length</span>
               <strong className="text-xl font-semibold">
                 {Math.round(total / 60)} min
@@ -147,14 +147,14 @@ const App = () => {
 
           <div className="flex flex-wrap gap-3">
             <button
-              className="rounded-full bg-gradient-to-br from-accent to-accent-2 px-6 py-3 text-sm font-semibold text-white shadow-button transition active:translate-y-[1px] active:scale-[0.98]"
+              className="rounded-full bg-linear-to-br from-accent to-accent-2 px-6 py-3 text-sm font-semibold text-white shadow-button transition active:translate-y-px active:scale-[0.98]"
               type="button"
               onClick={handleToggle}
             >
               {isRunning ? "Pause" : "Start"}
             </button>
             <button
-              className="rounded-full border border-black/10 bg-transparent px-6 py-3 text-sm font-semibold text-text transition hover:bg-black/5 active:translate-y-[1px] active:scale-[0.98]"
+              className="rounded-full border border-black/10 bg-transparent px-6 py-3 text-sm font-semibold text-text transition hover:bg-black/5 active:translate-y-px active:scale-[0.98]"
               type="button"
               onClick={handleReset}
             >
