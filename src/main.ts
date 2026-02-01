@@ -1,7 +1,6 @@
 import { app, BrowserWindow, ipcMain } from "electron";
 import path from "node:path";
 import started from "electron-squirrel-startup";
-import { activeWindow } from "get-windows";
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -34,6 +33,7 @@ const logActiveAppDebug = (message: string, payload?: unknown) => {
 
 const getActiveAppInfo = async (): Promise<ActiveAppInfo> => {
   try {
+    const { activeWindow } = await import("get-windows");
     const active = await activeWindow();
     if (!active) {
       logActiveAppDebug("activeWindow returned undefined", {
