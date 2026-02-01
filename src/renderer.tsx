@@ -36,7 +36,7 @@ const MODES: Record<Mode, ModeConfig> = {
   break: { label: "Break", seconds: 5 * 60 },
 };
 
-const AUDIO_LANGUAGE: AudioLanguage = "en";
+const AUDIO_LANGUAGE: AudioLanguage = "jp";
 const AUDIO_BASE_URL = `${import.meta.env.BASE_URL}audio/`;
 
 const formatTime = (totalSeconds: number) => {
