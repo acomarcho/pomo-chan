@@ -25,6 +25,8 @@ const formatTime = (totalSeconds: number) => {
 };
 
 const LIVE2D_MODEL_URL = "/live2d/hiyori/hiyori_pro_t11.model3.json";
+const LIVE2D_ZOOM = 3;
+const LIVE2D_Y_OFFSET = 0.9;
 
 const Live2DStage = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -61,10 +63,10 @@ const Live2DStage = () => {
       const scale = Math.min(
         width / modelBaseSize.width,
         height / modelBaseSize.height,
-      );
+      ) * LIVE2D_ZOOM;
       model.scale.set(scale);
       model.pivot.set(modelBaseSize.width / 2, modelBaseSize.height / 2);
-      model.position.set(width / 2, height / 2);
+      model.position.set(width / 2, height / 2 + height * LIVE2D_Y_OFFSET);
     };
 
     const loadModel = async () => {
