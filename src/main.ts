@@ -70,9 +70,9 @@ const createWindow = () => {
     height: 480,
     minWidth: 360,
     minHeight: 480,
-    // maxWidth: 360,
-    // maxHeight: 480,
-    // resizable: false,
+    maxWidth: 360,
+    maxHeight: 480,
+    resizable: false,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
     },
