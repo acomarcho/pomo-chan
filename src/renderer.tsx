@@ -13,6 +13,19 @@ type ModeConfig = {
   seconds: number;
 };
 
+type AlwaysOnTopAPI = {
+  get: () => Promise<boolean>;
+  set: (value: boolean) => Promise<boolean>;
+};
+
+declare global {
+  interface Window {
+    electronAPI?: {
+      alwaysOnTop?: AlwaysOnTopAPI;
+    };
+  }
+}
+
 const MODES: Record<Mode, ModeConfig> = {
   focus: { label: "Focus", seconds: 25 * 60 },
   break: { label: "Break", seconds: 5 * 60 },
@@ -119,6 +132,9 @@ const App = () => {
   const [mode, setMode] = useState<Mode>("focus");
   const [remaining, setRemaining] = useState(MODES.focus.seconds);
   const [isRunning, setIsRunning] = useState(false);
+  const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(false);
+
+  const isAlwaysOnTopAvailable = Boolean(window.electronAPI?.alwaysOnTop);
 
   const total = MODES[mode].seconds;
 
@@ -139,10 +155,31 @@ const App = () => {
     return () => window.clearInterval(interval);
   }, [isRunning, mode]);
 
+  useEffect(() => {
+    const api = window.electronAPI?.alwaysOnTop;
+    if (!api) return;
+    let isActive = true;
+    api
+      .get()
+      .then((value) => {
+        if (isActive) {
+          setIsAlwaysOnTop(value);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
   const formattedTime = useMemo(() => formatTime(remaining), [remaining]);
   const showResume = !isRunning && remaining !== total;
   const primaryLabel = isRunning ? "Pause" : showResume ? "Resume" : "Start";
   const switchLabel = mode === "focus" ? "Break" : "Focus";
+  const toggleTrackClass = isAlwaysOnTop ? "bg-gray-900" : "bg-gray-300";
+  const toggleThumbClass = isAlwaysOnTop
+    ? "translate-x-4 bg-white"
+    : "translate-x-0 bg-white";
 
   const handleToggle = () => setIsRunning((prev) => !prev);
   const handleSwitchMode = () => {
@@ -151,9 +188,40 @@ const App = () => {
     setMode(nextMode);
     setRemaining(MODES[nextMode].seconds);
   };
+  const handleAlwaysOnTop = async () => {
+    const api = window.electronAPI?.alwaysOnTop;
+    if (!api) return;
+    const previous = isAlwaysOnTop;
+    const next = !previous;
+    setIsAlwaysOnTop(next);
+    try {
+      const confirmed = await api.set(next);
+      setIsAlwaysOnTop(confirmed);
+    } catch (error) {
+      console.error("Failed to toggle always-on-top", error);
+      setIsAlwaysOnTop(previous);
+    }
+  };
 
   return (
     <div className="flex min-h-screen flex-col bg-white px-4 py-4 text-gray-900">
+      <div className="fixed right-3 top-3 z-20 flex items-center gap-2 rounded-full bg-white/90 px-3 py-1.5 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-gray-600 shadow-sm backdrop-blur">
+        <span>Always on top</span>
+        <button
+          className={`relative h-5 w-9 rounded-full transition disabled:cursor-not-allowed disabled:opacity-60 ${toggleTrackClass}`}
+          type="button"
+          role="switch"
+          aria-checked={isAlwaysOnTop}
+          aria-label="Toggle always on top"
+          disabled={!isAlwaysOnTopAvailable}
+          onClick={handleAlwaysOnTop}
+        >
+          <span
+            className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full shadow transition ${toggleThumbClass}`}
+          />
+        </button>
+      </div>
+
       <section className="flex items-center justify-center pb-3">
         <Live2DStage />
       </section>
