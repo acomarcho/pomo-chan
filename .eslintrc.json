@@ -19,7 +19,7 @@
         "project": "./tsconfig.json"
       },
       "alias": {
-        "map": [["@", "./src"]],
+        "map": [["@/lib", "./src/lib"], ["@/components", "./src/components"], ["@", "./src"]],
         "extensions": [".ts", ".tsx", ".js", ".jsx", ".json"]
       }
     }
