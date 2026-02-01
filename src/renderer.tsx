@@ -302,7 +302,7 @@ const App = () => {
     api
       .debug()
       .then((info) => {
-        console.debug("Active app debug", info);
+        console.log("Active app debug", info);
       })
       .catch(() => {});
   }, []);
