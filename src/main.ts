@@ -1,6 +1,8 @@
 import { app, BrowserWindow, ipcMain } from "electron";
 import { activeWindow } from "get-windows";
+import { execFile } from "node:child_process";
 import path from "node:path";
+import { promisify } from "node:util";
 import started from "electron-squirrel-startup";
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
@@ -10,13 +12,42 @@ if (started) {
 
 let mainWindow: BrowserWindow | null = null;
 
+const execFileAsync = promisify(execFile);
+
 type ActiveAppInfo = {
   name: string;
   title?: string;
   platform?: string;
   bundleId?: string;
   path?: string;
+  source?: "get-windows" | "lsappinfo";
   error?: string;
+};
+
+const parseLsappinfoName = (output: string) => {
+  const match =
+    output.match(/"LSDisplayName"="([^"]+)"/) ??
+    output.match(/"DisplayName"="([^"]+)"/) ??
+    output.match(/"Name"="([^"]+)"/);
+  return match?.[1]?.trim() ?? "";
+};
+
+const getActiveAppNameFromLsappinfo = async () => {
+  try {
+    const front = await execFileAsync("lsappinfo", ["front"]);
+    const asn = front.stdout.trim().split(/\s+/)[0];
+    if (!asn) return "";
+    const info = await execFileAsync("lsappinfo", [
+      "info",
+      "-only",
+      "name",
+      "-app",
+      asn,
+    ]);
+    return parseLsappinfoName(info.stdout);
+  } catch (error) {
+    return "";
+  }
 };
 
 const getActiveAppInfo = async (): Promise<ActiveAppInfo> => {
@@ -28,6 +59,20 @@ const getActiveAppInfo = async (): Promise<ActiveAppInfo> => {
       accessibilityPermission: false,
       screenRecordingPermission: false,
     });
+    if (result?.owner?.name) {
+      return {
+        name: result.owner?.name ?? "",
+        title: result.title ?? "",
+        platform: result.platform ?? "",
+        bundleId: "bundleId" in result.owner ? result.owner.bundleId : undefined,
+        path: result.owner?.path ?? "",
+        source: "get-windows",
+      };
+    }
+    const fallbackName = await getActiveAppNameFromLsappinfo();
+    if (fallbackName) {
+      return { name: fallbackName, source: "lsappinfo" };
+    }
     if (!result) {
       return { name: "", error: "activeWindow returned undefined" };
     }
@@ -37,8 +82,13 @@ const getActiveAppInfo = async (): Promise<ActiveAppInfo> => {
       platform: result.platform ?? "",
       bundleId: "bundleId" in result.owner ? result.owner.bundleId : undefined,
       path: result.owner?.path ?? "",
+      source: "get-windows",
     };
   } catch (error) {
+    const fallbackName = await getActiveAppNameFromLsappinfo();
+    if (fallbackName) {
+      return { name: fallbackName, source: "lsappinfo" };
+    }
     return {
       name: "",
       error: error instanceof Error ? error.message : String(error),
