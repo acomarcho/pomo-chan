@@ -7,6 +7,12 @@ const alwaysOnTop = {
   set: (value: boolean) => ipcRenderer.invoke("always-on-top:set", value),
 };
 
+const activeApp = {
+  get: () => ipcRenderer.invoke("active-app:get"),
+  debug: () => ipcRenderer.invoke("active-app:debug"),
+};
+
 contextBridge.exposeInMainWorld("electronAPI", {
   alwaysOnTop,
+  activeApp,
 });

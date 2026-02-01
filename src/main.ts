@@ -1,5 +1,7 @@
 import { app, BrowserWindow, ipcMain } from "electron";
+import { execFile } from "node:child_process";
 import path from "node:path";
+import { promisify } from "node:util";
 import started from "electron-squirrel-startup";
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
@@ -8,6 +10,58 @@ if (started) {
 }
 
 let mainWindow: BrowserWindow | null = null;
+
+const execFileAsync = promisify(execFile);
+
+type ActiveAppInfo = {
+  name: string;
+  source?: "lsappinfo";
+  error?: string;
+};
+
+const parseLsappinfoName = (output: string) => {
+  const match =
+    output.match(/"LSDisplayName"="([^"]+)"/) ??
+    output.match(/"DisplayName"="([^"]+)"/) ??
+    output.match(/"Name"="([^"]+)"/);
+  return match?.[1]?.trim() ?? "";
+};
+
+const getActiveAppNameFromLsappinfo = async () => {
+  try {
+    const front = await execFileAsync("lsappinfo", ["front"]);
+    const asn = front.stdout.trim().split(/\s+/)[0];
+    if (!asn) return "";
+    const info = await execFileAsync("lsappinfo", [
+      "info",
+      "-only",
+      "name",
+      "-app",
+      asn,
+    ]);
+    return parseLsappinfoName(info.stdout);
+  } catch (error) {
+    return "";
+  }
+};
+
+const getActiveAppInfo = async (): Promise<ActiveAppInfo> => {
+  if (process.platform !== "darwin") {
+    return { name: "" };
+  }
+  try {
+    const name = await getActiveAppNameFromLsappinfo();
+    if (name) {
+      return { name, source: "lsappinfo" };
+    }
+    return { name: "", error: "lsappinfo returned empty" };
+  } catch (error) {
+    return {
+      name: "",
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+};
 
 const createWindow = () => {
   // Create the browser window.
@@ -33,8 +87,9 @@ const createWindow = () => {
     );
   }
 
-  // Open the DevTools.
-  mainWindow.webContents.openDevTools();
+  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+    mainWindow.webContents.openDevTools();
+  }
 
   mainWindow.on("closed", () => {
     mainWindow = null;
@@ -49,6 +104,15 @@ ipcMain.handle("always-on-top:set", (_event, value: boolean) => {
   if (!mainWindow) return false;
   mainWindow.setAlwaysOnTop(Boolean(value), "floating");
   return mainWindow.isAlwaysOnTop();
+});
+
+ipcMain.handle("active-app:get", async () => {
+  const info = await getActiveAppInfo();
+  return info.name;
+});
+
+ipcMain.handle("active-app:debug", async () => {
+  return getActiveAppInfo();
 });
 
 // This method will be called when Electron has finished
