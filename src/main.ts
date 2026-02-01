@@ -15,10 +15,7 @@ const getActiveAppName = async () => {
     return "";
   }
   try {
-    const result = await activeWindow({
-      accessibilityPermission: false,
-      screenRecordingPermission: false,
-    });
+    const result = await activeWindow();
     return result?.owner?.name ?? "";
   } catch (error) {
     return "";
