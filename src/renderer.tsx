@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { createRoot } from "react-dom/client";
 import * as PIXI from "pixi.js";
 import { Live2DModel } from "pixi-live2d-display";
@@ -174,11 +180,11 @@ const App = () => {
 
   const playSound = useCallback(
     (audioMode: Mode, event: AudioEvent) => {
-    const key = `${audioMode}_${event}` as AudioKey;
-    const audio = audioMap[key];
-    if (!audio) return;
-    audio.currentTime = 0;
-    void audio.play().catch(() => {});
+      const key = `${audioMode}_${event}` as AudioKey;
+      const audio = audioMap[key];
+      if (!audio) return;
+      audio.currentTime = 0;
+      void audio.play().catch(() => {});
     },
     [audioMap],
   );
