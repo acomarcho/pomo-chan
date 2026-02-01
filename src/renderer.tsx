@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import * as PIXI from "pixi.js";
 import { Live2DModel } from "pixi-live2d-display";
@@ -9,6 +9,9 @@ import "./styles/globals.css";
 (window as typeof window & { PIXI?: typeof PIXI }).PIXI = PIXI;
 
 type Mode = "focus" | "break";
+type AudioLanguage = "en" | "jp";
+type AudioEvent = "start" | "end";
+type AudioKey = `${Mode}_${AudioEvent}`;
 
 type ModeConfig = {
   label: string;
@@ -32,6 +35,9 @@ const MODES: Record<Mode, ModeConfig> = {
   focus: { label: "Focus", seconds: 25 * 60 },
   break: { label: "Break", seconds: 5 * 60 },
 };
+
+const AUDIO_LANGUAGE: AudioLanguage = "en";
+const AUDIO_BASE_URL = `${import.meta.env.BASE_URL}audio/`;
 
 const formatTime = (totalSeconds: number) => {
   const minutes = Math.floor(totalSeconds / 60);
@@ -135,10 +141,37 @@ const App = () => {
   const [remaining, setRemaining] = useState(MODES.focus.seconds);
   const [isRunning, setIsRunning] = useState(false);
   const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(false);
+  const previousModeRef = useRef(mode);
+  const previousRunningRef = useRef(isRunning);
 
   const isAlwaysOnTopAvailable = Boolean(window.electronAPI?.alwaysOnTop);
 
   const total = MODES[mode].seconds;
+  const audioMap = useMemo(() => {
+    const buildUrl = (audioMode: Mode, event: AudioEvent) =>
+      `${AUDIO_BASE_URL}${audioMode}_${event}_${AUDIO_LANGUAGE}.mp3`;
+    const map: Record<AudioKey, HTMLAudioElement> = {
+      focus_start: new Audio(buildUrl("focus", "start")),
+      focus_end: new Audio(buildUrl("focus", "end")),
+      break_start: new Audio(buildUrl("break", "start")),
+      break_end: new Audio(buildUrl("break", "end")),
+    };
+    Object.values(map).forEach((audio) => {
+      audio.preload = "auto";
+    });
+    return map;
+  }, []);
+
+  const playSound = useCallback(
+    (audioMode: Mode, event: AudioEvent) => {
+    const key = `${audioMode}_${event}` as AudioKey;
+    const audio = audioMap[key];
+    if (!audio) return;
+    audio.currentTime = 0;
+    void audio.play().catch(() => {});
+    },
+    [audioMap],
+  );
 
   useEffect(() => {
     if (!isRunning) return undefined;
@@ -146,6 +179,7 @@ const App = () => {
     const interval = window.setInterval(() => {
       setRemaining((prev) => {
         if (prev <= 1) {
+          playSound(mode, "end");
           const nextMode: Mode = mode === "focus" ? "break" : "focus";
           setMode(nextMode);
           return MODES[nextMode].seconds;
@@ -155,7 +189,21 @@ const App = () => {
     }, 1000);
 
     return () => window.clearInterval(interval);
-  }, [isRunning, mode]);
+  }, [isRunning, mode, playSound]);
+
+  useEffect(() => {
+    if (isRunning && !previousRunningRef.current) {
+      playSound(mode, "start");
+    }
+    previousRunningRef.current = isRunning;
+  }, [isRunning, mode, playSound]);
+
+  useEffect(() => {
+    if (isRunning && previousModeRef.current !== mode) {
+      playSound(mode, "start");
+    }
+    previousModeRef.current = mode;
+  }, [isRunning, mode, playSound]);
 
   useEffect(() => {
     const api = window.electronAPI?.alwaysOnTop;
