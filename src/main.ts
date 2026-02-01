@@ -24,7 +24,10 @@ const getActiveAppInfo = async (): Promise<ActiveAppInfo> => {
     return { name: "" };
   }
   try {
-    const result = await activeWindow();
+    const result = await activeWindow({
+      accessibilityPermission: false,
+      screenRecordingPermission: false,
+    });
     if (!result) {
       return { name: "", error: "activeWindow returned undefined" };
     }
