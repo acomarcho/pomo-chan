@@ -60,10 +60,9 @@ const Live2DStage = () => {
       if (!width || !height || !modelBaseSize.width || !modelBaseSize.height) {
         return;
       }
-      const scale = Math.min(
-        width / modelBaseSize.width,
-        height / modelBaseSize.height,
-      ) * LIVE2D_ZOOM;
+      const scale =
+        Math.min(width / modelBaseSize.width, height / modelBaseSize.height) *
+        LIVE2D_ZOOM;
       model.scale.set(scale);
       model.pivot.set(modelBaseSize.width / 2, modelBaseSize.height / 2);
       model.position.set(width / 2, height / 2 + height * LIVE2D_Y_OFFSET);
@@ -104,7 +103,7 @@ const Live2DStage = () => {
   }, []);
 
   return (
-    <div className="relative flex h-100 w-full max-w-4xl items-center justify-center overflow-hidden rounded-2xl bg-gray-200">
+    <div className="relative flex h-65 w-full max-w-3xl items-center justify-center overflow-hidden rounded-2xl bg-gray-200 sm:h-75">
       {/* Live2D canvas mounts into this container. */}
       {!isLoaded && (
         <span className="pointer-events-none relative z-10 text-sm font-medium text-gray-500">
@@ -154,39 +153,41 @@ const App = () => {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-white px-6 py-6 text-gray-900">
-      <section className="flex flex-1 items-center justify-center pb-6">
+    <div className="flex min-h-screen flex-col bg-white px-4 py-4 text-gray-900">
+      <section className="flex items-center justify-center pb-3">
         <Live2DStage />
       </section>
 
-      <section className="text-center">
-        <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-gray-500">
-          {MODES[mode].label} Timer
-        </h2>
-        <h1
-          className="mt-3 text-[clamp(3rem,8vw,5rem)] font-semibold tabular-nums"
-          aria-live="polite"
-        >
-          {formattedTime}
-        </h1>
-      </section>
+      <div className="flex flex-1 flex-col justify-end">
+        <section className="text-center">
+          <h2 className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-500">
+            {MODES[mode].label} Timer
+          </h2>
+          <h1
+            className="mt-2 text-[clamp(2.4rem,6.5vw,4rem)] font-semibold leading-none tabular-nums"
+            aria-live="polite"
+          >
+            {formattedTime}
+          </h1>
+        </section>
 
-      <section className="flex items-center justify-center gap-4 pb-6 pt-8">
-        <button
-          className="rounded-full bg-gray-900 px-8 py-3 text-sm font-semibold text-white transition active:scale-[0.98]"
-          type="button"
-          onClick={handleToggle}
-        >
-          {primaryLabel}
-        </button>
-        <button
-          className="rounded-full border border-gray-300 px-8 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-100 active:scale-[0.98]"
-          type="button"
-          onClick={handleSwitchMode}
-        >
-          {switchLabel}
-        </button>
-      </section>
+        <section className="flex items-center justify-center gap-3 pb-2 pt-4">
+          <button
+            className="rounded-full bg-gray-900 px-6 py-2.5 text-sm font-semibold text-white transition active:scale-[0.98]"
+            type="button"
+            onClick={handleToggle}
+          >
+            {primaryLabel}
+          </button>
+          <button
+            className="rounded-full border border-gray-300 px-6 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-100 active:scale-[0.98]"
+            type="button"
+            onClick={handleSwitchMode}
+          >
+            {switchLabel}
+          </button>
+        </section>
+      </div>
     </div>
   );
 };
