@@ -37,10 +37,15 @@ type AlwaysOnTopAPI = {
   set: (value: boolean) => Promise<boolean>;
 };
 
+type ActiveAppAPI = {
+  get: () => Promise<string>;
+};
+
 declare global {
   interface Window {
     electronAPI?: {
       alwaysOnTop?: AlwaysOnTopAPI;
+      activeApp?: ActiveAppAPI;
     };
   }
 }
@@ -157,10 +162,12 @@ const App = () => {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [pendingMode, setPendingMode] = useState<Mode | null>(null);
   const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(false);
+  const [activeAppName, setActiveAppName] = useState("");
   const previousModeRef = useRef(mode);
   const previousRunningRef = useRef(isRunning);
 
   const isAlwaysOnTopAvailable = Boolean(window.electronAPI?.alwaysOnTop);
+  const isActiveAppAvailable = Boolean(window.electronAPI?.activeApp);
 
   const total = MODES[mode].seconds;
   const audioMap = useMemo(() => {
@@ -248,6 +255,32 @@ const App = () => {
     };
   }, []);
 
+  useEffect(() => {
+    const api = window.electronAPI?.activeApp;
+    if (!api) return;
+    let isActive = true;
+
+    const pollActiveApp = async () => {
+      try {
+        const name = await api.get();
+        if (!isActive) return;
+        setActiveAppName(name || "Unknown");
+      } catch (error) {
+        if (isActive) {
+          setActiveAppName("Unavailable");
+        }
+      }
+    };
+
+    void pollActiveApp();
+    const interval = window.setInterval(pollActiveApp, 1000);
+
+    return () => {
+      isActive = false;
+      window.clearInterval(interval);
+    };
+  }, []);
+
   const formattedTime = useMemo(() => formatTime(remaining), [remaining]);
   const showResume = !isRunning && remaining !== total;
   const primaryLabel = isRunning ? "Pause" : showResume ? "Resume" : "Start";
@@ -289,6 +322,14 @@ const App = () => {
 
   return (
     <div className="flex min-h-screen flex-col bg-white px-4 py-4 text-gray-900">
+      {isActiveAppAvailable && (
+        <div className="fixed left-3 top-3 z-20 flex max-w-[60%] items-center gap-2 rounded-full bg-white/90 px-3 py-1.5 text-[0.65rem] font-semibold text-gray-600 shadow-sm backdrop-blur">
+          <span className="uppercase tracking-[0.2em]">Active app</span>
+          <span className="max-w-[8rem] truncate text-[0.7rem] font-medium text-gray-900">
+            {activeAppName || "Unknown"}
+          </span>
+        </div>
+      )}
       <div className="fixed right-3 top-3 z-20 flex items-center gap-2 rounded-full bg-white/90 px-3 py-1.5 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-gray-600 shadow-sm backdrop-blur">
         <span>Always on top</span>
         <Switch

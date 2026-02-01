@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain } from "electron";
+import { execFile } from "node:child_process";
 import path from "node:path";
 import started from "electron-squirrel-startup";
 
@@ -8,6 +9,28 @@ if (started) {
 }
 
 let mainWindow: BrowserWindow | null = null;
+
+const getActiveAppName = () =>
+  new Promise<string>((resolve) => {
+    if (process.platform !== "darwin") {
+      resolve("");
+      return;
+    }
+    execFile(
+      "osascript",
+      [
+        "-e",
+        'tell application "System Events" to get name of first application process whose frontmost is true',
+      ],
+      (error, stdout) => {
+        if (error) {
+          resolve("");
+          return;
+        }
+        resolve(stdout.trim());
+      },
+    );
+  });
 
 const createWindow = () => {
   // Create the browser window.
@@ -49,6 +72,10 @@ ipcMain.handle("always-on-top:set", (_event, value: boolean) => {
   if (!mainWindow) return false;
   mainWindow.setAlwaysOnTop(Boolean(value), "floating");
   return mainWindow.isAlwaysOnTop();
+});
+
+ipcMain.handle("active-app:get", async () => {
+  return getActiveAppName();
 });
 
 // This method will be called when Electron has finished
