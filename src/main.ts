@@ -16,15 +16,39 @@ type ActiveAppInfo = {
   error?: string;
 };
 
+const ACTIVE_APP_LOG_THROTTLE_MS = 10_000;
+let lastActiveAppLogAt = 0;
+
+const logActiveAppDebug = (message: string, payload?: unknown) => {
+  const now = Date.now();
+  if (now - lastActiveAppLogAt < ACTIVE_APP_LOG_THROTTLE_MS) {
+    return;
+  }
+  lastActiveAppLogAt = now;
+  if (payload === undefined) {
+    console.log(`[active-app] ${message}`);
+  } else {
+    console.log(`[active-app] ${message}`, payload);
+  }
+};
+
 const getActiveAppInfo = async (): Promise<ActiveAppInfo> => {
   try {
     const active = await activeWindow();
+    if (!active) {
+      logActiveAppDebug("activeWindow returned undefined", {
+        platform: process.platform,
+      });
+      return { name: "", error: "get-windows returned empty" };
+    }
     const name = active?.owner?.name?.trim() ?? "";
     if (name) {
       return { name, source: "get-windows" };
     }
+    logActiveAppDebug("activeWindow missing owner name", active);
     return { name: "", error: "get-windows returned empty" };
   } catch (error) {
+    console.error("[active-app] activeWindow error", error);
     return {
       name: "",
       error: error instanceof Error ? error.message : String(error),
