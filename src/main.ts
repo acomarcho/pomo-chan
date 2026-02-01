@@ -1,5 +1,5 @@
 import { app, BrowserWindow, ipcMain } from "electron";
-import activeWindow from "active-win";
+import { activeWindow } from "get-windows";
 import path from "node:path";
 import started from "electron-squirrel-startup";
 
