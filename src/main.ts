@@ -1,8 +1,7 @@
 import { app, BrowserWindow, ipcMain } from "electron";
-import { execFile } from "node:child_process";
 import path from "node:path";
-import { promisify } from "node:util";
 import started from "electron-squirrel-startup";
+import { activeWindow } from "get-windows";
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -11,50 +10,20 @@ if (started) {
 
 let mainWindow: BrowserWindow | null = null;
 
-const execFileAsync = promisify(execFile);
-
 type ActiveAppInfo = {
   name: string;
-  source?: "lsappinfo";
+  source?: "get-windows";
   error?: string;
 };
 
-const parseLsappinfoName = (output: string) => {
-  const match =
-    output.match(/"LSDisplayName"="([^"]+)"/) ??
-    output.match(/"DisplayName"="([^"]+)"/) ??
-    output.match(/"Name"="([^"]+)"/);
-  return match?.[1]?.trim() ?? "";
-};
-
-const getActiveAppNameFromLsappinfo = async () => {
-  try {
-    const front = await execFileAsync("lsappinfo", ["front"]);
-    const asn = front.stdout.trim().split(/\s+/)[0];
-    if (!asn) return "";
-    const info = await execFileAsync("lsappinfo", [
-      "info",
-      "-only",
-      "name",
-      "-app",
-      asn,
-    ]);
-    return parseLsappinfoName(info.stdout);
-  } catch (error) {
-    return "";
-  }
-};
-
 const getActiveAppInfo = async (): Promise<ActiveAppInfo> => {
-  if (process.platform !== "darwin") {
-    return { name: "" };
-  }
   try {
-    const name = await getActiveAppNameFromLsappinfo();
+    const active = await activeWindow();
+    const name = active?.owner?.name?.trim() ?? "";
     if (name) {
-      return { name, source: "lsappinfo" };
+      return { name, source: "get-windows" };
     }
-    return { name: "", error: "lsappinfo returned empty" };
+    return { name: "", error: "get-windows returned empty" };
   } catch (error) {
     return {
       name: "",
