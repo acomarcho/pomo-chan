@@ -1,5 +1,4 @@
 import { app, BrowserWindow, ipcMain } from "electron";
-import { activeWindow } from "get-windows";
 import { execFile } from "node:child_process";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -16,11 +15,7 @@ const execFileAsync = promisify(execFile);
 
 type ActiveAppInfo = {
   name: string;
-  title?: string;
-  platform?: string;
-  bundleId?: string;
-  path?: string;
-  source?: "get-windows" | "lsappinfo";
+  source?: "lsappinfo";
   error?: string;
 };
 
@@ -55,40 +50,12 @@ const getActiveAppInfo = async (): Promise<ActiveAppInfo> => {
     return { name: "" };
   }
   try {
-    const result = await activeWindow({
-      accessibilityPermission: false,
-      screenRecordingPermission: false,
-    });
-    if (result?.owner?.name) {
-      return {
-        name: result.owner?.name ?? "",
-        title: result.title ?? "",
-        platform: result.platform ?? "",
-        bundleId: "bundleId" in result.owner ? result.owner.bundleId : undefined,
-        path: result.owner?.path ?? "",
-        source: "get-windows",
-      };
+    const name = await getActiveAppNameFromLsappinfo();
+    if (name) {
+      return { name, source: "lsappinfo" };
     }
-    const fallbackName = await getActiveAppNameFromLsappinfo();
-    if (fallbackName) {
-      return { name: fallbackName, source: "lsappinfo" };
-    }
-    if (!result) {
-      return { name: "", error: "activeWindow returned undefined" };
-    }
-    return {
-      name: result.owner?.name ?? "",
-      title: result.title ?? "",
-      platform: result.platform ?? "",
-      bundleId: "bundleId" in result.owner ? result.owner.bundleId : undefined,
-      path: result.owner?.path ?? "",
-      source: "get-windows",
-    };
+    return { name: "", error: "lsappinfo returned empty" };
   } catch (error) {
-    const fallbackName = await getActiveAppNameFromLsappinfo();
-    if (fallbackName) {
-      return { name: fallbackName, source: "lsappinfo" };
-    }
     return {
       name: "",
       error: error instanceof Error ? error.message : String(error),
