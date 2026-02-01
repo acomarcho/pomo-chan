@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import * as PIXI from "pixi.js";
 import { Live2DModel } from "pixi-live2d-display";
-import "./index.css";
+import "./styles/globals.css";
 
 (window as typeof window & { PIXI?: typeof PIXI }).PIXI = PIXI;
 
