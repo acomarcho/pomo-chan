@@ -3,6 +3,14 @@ import { createRoot } from "react-dom/client";
 import * as PIXI from "pixi.js";
 import { Live2DModel } from "pixi-live2d-display";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import "./styles/globals.css";
 
@@ -140,6 +148,8 @@ const App = () => {
   const [mode, setMode] = useState<Mode>("focus");
   const [remaining, setRemaining] = useState(MODES.focus.seconds);
   const [isRunning, setIsRunning] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [pendingMode, setPendingMode] = useState<Mode | null>(null);
   const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(false);
   const previousModeRef = useRef(mode);
   const previousRunningRef = useRef(isRunning);
@@ -206,6 +216,16 @@ const App = () => {
   }, [isRunning, mode, playSound]);
 
   useEffect(() => {
+    if (!isConfirmOpen) {
+      setPendingMode(null);
+      return;
+    }
+    if (pendingMode && mode === pendingMode) {
+      setIsConfirmOpen(false);
+    }
+  }, [isConfirmOpen, mode, pendingMode]);
+
+  useEffect(() => {
     const api = window.electronAPI?.alwaysOnTop;
     if (!api) return;
     let isActive = true;
@@ -227,11 +247,25 @@ const App = () => {
   const primaryLabel = isRunning ? "Pause" : showResume ? "Resume" : "Start";
   const switchLabel = mode === "focus" ? "Break" : "Focus";
   const handleToggle = () => setIsRunning((prev) => !prev);
-  const handleSwitchMode = () => {
-    const nextMode: Mode = mode === "focus" ? "break" : "focus";
+  const applyModeSwitch = (nextMode: Mode) => {
     setIsRunning(false);
     setMode(nextMode);
     setRemaining(MODES[nextMode].seconds);
+  };
+  const handleSwitchMode = () => {
+    const nextMode: Mode = mode === "focus" ? "break" : "focus";
+    if (isRunning) {
+      setPendingMode(nextMode);
+      setIsConfirmOpen(true);
+      return;
+    }
+    applyModeSwitch(nextMode);
+  };
+  const handleConfirmSwitch = () => {
+    if (!pendingMode) return;
+    applyModeSwitch(pendingMode);
+    setIsConfirmOpen(false);
+    setPendingMode(null);
   };
   const handleAlwaysOnTop = async (next: boolean) => {
     const api = window.electronAPI?.alwaysOnTop;
@@ -294,6 +328,36 @@ const App = () => {
           </Button>
         </section>
       </div>
+
+      <Dialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
+        <DialogContent className="text-left">
+          <DialogHeader>
+            <DialogTitle>
+              Switch to {pendingMode ? MODES[pendingMode].label : switchLabel}{" "}
+              timer?
+            </DialogTitle>
+            <DialogDescription>
+              Your current timer progress will be lost if you switch modes.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              type="button"
+              onClick={() => setIsConfirmOpen(false)}
+            >
+              Keep {MODES[mode].label}
+            </Button>
+            <Button
+              variant="destructive"
+              type="button"
+              onClick={handleConfirmSwitch}
+            >
+              Switch to {pendingMode ? MODES[pendingMode].label : switchLabel}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
