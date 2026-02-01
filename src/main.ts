@@ -10,15 +10,36 @@ if (started) {
 
 let mainWindow: BrowserWindow | null = null;
 
-const getActiveAppName = async () => {
+type ActiveAppInfo = {
+  name: string;
+  title?: string;
+  platform?: string;
+  bundleId?: string;
+  path?: string;
+  error?: string;
+};
+
+const getActiveAppInfo = async (): Promise<ActiveAppInfo> => {
   if (process.platform !== "darwin") {
-    return "";
+    return { name: "" };
   }
   try {
     const result = await activeWindow();
-    return result?.owner?.name ?? "";
+    if (!result) {
+      return { name: "", error: "activeWindow returned undefined" };
+    }
+    return {
+      name: result.owner?.name ?? "",
+      title: result.title ?? "",
+      platform: result.platform ?? "",
+      bundleId: "bundleId" in result.owner ? result.owner.bundleId : undefined,
+      path: result.owner?.path ?? "",
+    };
   } catch (error) {
-    return "";
+    return {
+      name: "",
+      error: error instanceof Error ? error.message : String(error),
+    };
   }
 };
 
@@ -46,8 +67,9 @@ const createWindow = () => {
     );
   }
 
-  // Open the DevTools.
-  mainWindow.webContents.openDevTools();
+  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+    mainWindow.webContents.openDevTools();
+  }
 
   mainWindow.on("closed", () => {
     mainWindow = null;
@@ -65,7 +87,12 @@ ipcMain.handle("always-on-top:set", (_event, value: boolean) => {
 });
 
 ipcMain.handle("active-app:get", async () => {
-  return getActiveAppName();
+  const info = await getActiveAppInfo();
+  return info.name;
+});
+
+ipcMain.handle("active-app:debug", async () => {
+  return getActiveAppInfo();
 });
 
 // This method will be called when Electron has finished

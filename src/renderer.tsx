@@ -39,6 +39,7 @@ type AlwaysOnTopAPI = {
 
 type ActiveAppAPI = {
   get: () => Promise<string>;
+  debug?: () => Promise<unknown>;
 };
 
 declare global {
@@ -292,6 +293,18 @@ const App = () => {
       isActive = false;
       window.clearInterval(interval);
     };
+  }, []);
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    const api = window.electronAPI?.activeApp;
+    if (!api?.debug) return;
+    api
+      .debug()
+      .then((info) => {
+        console.debug("Active app debug", info);
+      })
+      .catch(() => {});
   }, []);
 
   const formattedTime = useMemo(() => formatTime(remaining), [remaining]);
