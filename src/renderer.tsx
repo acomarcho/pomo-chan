@@ -39,7 +39,7 @@ const formatTime = (totalSeconds: number) => {
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 };
 
-const LIVE2D_MODEL_URL = "/live2d/hiyori/hiyori_pro_t11.model3.json";
+const LIVE2D_MODEL_URL = `${import.meta.env.BASE_URL}live2d/hiyori/hiyori_pro_t11.model3.json`;
 const LIVE2D_ZOOM = 3;
 const LIVE2D_Y_OFFSET = 0.9;
 
