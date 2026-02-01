@@ -1,6 +1,10 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
+import * as PIXI from "pixi.js";
+import { Live2DModel } from "pixi-live2d-display";
 import "./index.css";
+
+(window as typeof window & { PIXI?: typeof PIXI }).PIXI = PIXI;
 
 type Mode = "focus" | "break";
 
@@ -18,6 +22,96 @@ const formatTime = (totalSeconds: number) => {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+};
+
+const LIVE2D_MODEL_URL = "/live2d/hiyori/hiyori_pro_t11.model3.json";
+
+const Live2DStage = () => {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return undefined;
+
+    let destroyed = false;
+
+    const app = new PIXI.Application({
+      backgroundAlpha: 0,
+      antialias: true,
+      autoDensity: true,
+      resizeTo: container,
+    });
+
+    const canvas = app.view as HTMLCanvasElement;
+    container.appendChild(canvas);
+    canvas.style.width = "100%";
+    canvas.style.height = "100%";
+    canvas.style.display = "block";
+
+    let model: Live2DModel | null = null;
+    const modelBaseSize = { width: 0, height: 0 };
+
+    const fitModel = () => {
+      if (!model) return;
+      const { width, height } = app.renderer;
+      if (!width || !height || !modelBaseSize.width || !modelBaseSize.height) {
+        return;
+      }
+      const scale = Math.min(
+        width / modelBaseSize.width,
+        height / modelBaseSize.height,
+      );
+      model.scale.set(scale);
+      model.pivot.set(modelBaseSize.width / 2, modelBaseSize.height / 2);
+      model.position.set(width / 2, height / 2);
+    };
+
+    const loadModel = async () => {
+      try {
+        model = await Live2DModel.from(LIVE2D_MODEL_URL, {
+          autoInteract: true,
+        });
+        if (destroyed) {
+          model.destroy();
+          return;
+        }
+        model.interactive = true;
+        app.stage.addChild(model);
+        const bounds = model.getBounds();
+        modelBaseSize.width = bounds.width || model.width;
+        modelBaseSize.height = bounds.height || model.height;
+        fitModel();
+        app.renderer.on("resize", fitModel);
+        setIsLoaded(true);
+      } catch (error) {
+        console.error("Failed to load Live2D model", error);
+      }
+    };
+
+    loadModel();
+
+    return () => {
+      destroyed = true;
+      app.renderer.off("resize", fitModel);
+      if (canvas && canvas.parentNode === container) {
+        container.removeChild(canvas);
+      }
+      app.destroy(true, { children: true, texture: true, baseTexture: true });
+    };
+  }, []);
+
+  return (
+    <div className="relative flex h-100 w-full max-w-4xl items-center justify-center overflow-hidden rounded-2xl bg-gray-200">
+      {/* Live2D canvas mounts into this container. */}
+      {!isLoaded && (
+        <span className="pointer-events-none relative z-10 text-sm font-medium text-gray-500">
+          Loading model...
+        </span>
+      )}
+      <div ref={containerRef} className="absolute inset-0" />
+    </div>
+  );
 };
 
 const App = () => {
@@ -60,10 +154,7 @@ const App = () => {
   return (
     <div className="flex min-h-screen flex-col bg-white px-6 py-6 text-gray-900">
       <section className="flex flex-1 items-center justify-center pb-6">
-        <div className="flex h-[400px] w-full max-w-4xl items-center justify-center rounded-2xl bg-gray-200 text-sm font-medium text-gray-500">
-          {/* Live2D canvas integration goes here. */}
-          Live2D Canvas
-        </div>
+        <Live2DStage />
       </section>
 
       <section className="text-center">
