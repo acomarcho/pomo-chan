@@ -11,6 +11,7 @@ let mainWindow: BrowserWindow | null = null;
 
 type ActiveAppInfo = {
   name: string;
+  title: string;
   source?: "get-windows";
   error?: string;
 };
@@ -20,16 +21,18 @@ const getActiveAppInfo = async (): Promise<ActiveAppInfo> => {
     const { activeWindow } = await import("get-windows");
     const active = await activeWindow();
     if (!active) {
-      return { name: "", error: "get-windows returned empty" };
+      return { name: "", title: "", error: "get-windows returned empty" };
     }
     const name = active?.owner?.name?.trim() ?? "";
-    if (name) {
-      return { name, source: "get-windows" };
+    const title = active?.title?.trim() ?? "";
+    if (name || title) {
+      return { name, title, source: "get-windows" };
     }
-    return { name: "", error: "get-windows returned empty" };
+    return { name: "", title: "", error: "get-windows returned empty" };
   } catch (error) {
     return {
       name: "",
+      title: "",
       error: error instanceof Error ? error.message : String(error),
     };
   }
@@ -80,7 +83,7 @@ ipcMain.handle("always-on-top:set", (_event, value: boolean) => {
 
 ipcMain.handle("active-app:get", async () => {
   const info = await getActiveAppInfo();
-  return info.name;
+  return { name: info.name, title: info.title };
 });
 
 ipcMain.handle("active-app:debug", async () => {

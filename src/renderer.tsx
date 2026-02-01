@@ -38,7 +38,7 @@ type AlwaysOnTopAPI = {
 };
 
 type ActiveAppAPI = {
-  get: () => Promise<string>;
+  get: () => Promise<{ name: string; title: string }>;
   debug?: () => Promise<unknown>;
 };
 
@@ -70,11 +70,11 @@ const LIVE2D_ZOOM = 3;
 const LIVE2D_Y_OFFSET = 0.9;
 
 type Live2DStageProps = {
-  activeAppName?: string;
+  activeAppLabel?: string;
   showActiveApp?: boolean;
 };
 
-const Live2DStage = ({ activeAppName, showActiveApp }: Live2DStageProps) => {
+const Live2DStage = ({ activeAppLabel, showActiveApp }: Live2DStageProps) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -157,10 +157,10 @@ const Live2DStage = ({ activeAppName, showActiveApp }: Live2DStageProps) => {
         </span>
       )}
       {showActiveApp && (
-        <div className="absolute bottom-3 left-3 z-10 flex max-w-[70%] items-center gap-2 rounded-full bg-white/90 px-3 py-1.5 text-[0.65rem] font-semibold text-gray-600 shadow-sm backdrop-blur">
+        <div className="absolute bottom-3 left-3 right-3 z-10 flex min-w-0 items-center gap-2 rounded-full bg-white/90 px-3 py-1.5 text-[0.65rem] font-semibold text-gray-600 shadow-sm backdrop-blur">
           <span className="uppercase tracking-[0.2em]">Active app</span>
-          <span className="truncate text-[0.7rem] font-medium text-gray-900">
-            {activeAppName || "Unknown"}
+          <span className="min-w-0 flex-1 truncate text-[0.7rem] font-medium text-gray-900">
+            {activeAppLabel || "Unknown"}
           </span>
         </div>
       )}
@@ -176,7 +176,7 @@ const App = () => {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [pendingMode, setPendingMode] = useState<Mode | null>(null);
   const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(false);
-  const [activeAppName, setActiveAppName] = useState("");
+  const [activeAppLabel, setActiveAppLabel] = useState("");
   const previousModeRef = useRef(mode);
   const previousRunningRef = useRef(isRunning);
 
@@ -276,12 +276,16 @@ const App = () => {
 
     const pollActiveApp = async () => {
       try {
-        const name = await api.get();
+        const { name, title } = await api.get();
         if (!isActive) return;
-        setActiveAppName(name || "Unknown");
+        if (name && title) {
+          setActiveAppLabel(`${name} - ${title}`);
+        } else {
+          setActiveAppLabel(name || title || "Unknown");
+        }
       } catch (error) {
         if (isActive) {
-          setActiveAppName("Unavailable");
+          setActiveAppLabel("Unavailable");
         }
       }
     };
@@ -364,7 +368,7 @@ const App = () => {
 
       <section className="flex items-center justify-center pb-3">
         <Live2DStage
-          activeAppName={activeAppName}
+          activeAppLabel={activeAppLabel}
           showActiveApp={isActiveAppAvailable}
         />
       </section>
