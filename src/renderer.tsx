@@ -70,6 +70,7 @@ const MODES: Record<Mode, ModeConfig> = {
   break: { label: "Break", seconds: 5 * 60 },
 };
 
+const REMINDER_INTERVAL_MS = 5 * 60 * 1000;
 const AUDIO_BASE_URL = `${import.meta.env.BASE_URL}audio/`;
 
 const formatTime = (totalSeconds: number) => {
@@ -237,6 +238,8 @@ const TimerWindow = () => {
   const [activeAppName, setActiveAppName] = useState("");
   const previousModeRef = useRef(mode);
   const previousRunningRef = useRef(isRunning);
+  const isRunningRef = useRef(isRunning);
+  const reminderTimeoutRef = useRef<number | null>(null);
 
   const isAlwaysOnTopAvailable = Boolean(window.electronAPI?.alwaysOnTop);
   const isActiveAppAvailable = Boolean(window.electronAPI?.activeApp);
@@ -265,6 +268,13 @@ const TimerWindow = () => {
     tock.preload = "auto";
     return { tick, tock };
   }, []);
+  const reminderAudio = useMemo(() => {
+    const audio = new Audio(
+      `${AUDIO_BASE_URL}reminder_${config.audioLanguage}.mp3`,
+    );
+    audio.preload = "auto";
+    return audio;
+  }, [config.audioLanguage]);
   const nextTickIsTickRef = useRef(true);
 
   const playSound = useCallback(
@@ -277,6 +287,27 @@ const TimerWindow = () => {
     },
     [audioMap],
   );
+
+  const playReminder = useCallback(() => {
+    reminderAudio.currentTime = 0;
+    void reminderAudio.play().catch(() => {});
+  }, [reminderAudio]);
+
+  const clearReminderTimeout = useCallback(() => {
+    if (reminderTimeoutRef.current === null) return;
+    window.clearTimeout(reminderTimeoutRef.current);
+    reminderTimeoutRef.current = null;
+  }, []);
+
+  const scheduleReminder = useCallback(() => {
+    clearReminderTimeout();
+    if (isRunningRef.current) return;
+    reminderTimeoutRef.current = window.setTimeout(() => {
+      if (isRunningRef.current) return;
+      playReminder();
+      scheduleReminder();
+    }, REMINDER_INTERVAL_MS);
+  }, [clearReminderTimeout, playReminder]);
 
   useEffect(() => {
     if (!isRunning) return undefined;
@@ -310,6 +341,14 @@ const TimerWindow = () => {
     }
     previousRunningRef.current = isRunning;
   }, [isRunning, mode, playSound]);
+
+  useEffect(() => {
+    isRunningRef.current = isRunning;
+    scheduleReminder();
+    return () => {
+      clearReminderTimeout();
+    };
+  }, [clearReminderTimeout, isRunning, scheduleReminder]);
 
   useEffect(() => {
     if (isRunning && previousModeRef.current !== mode) {
