@@ -198,11 +198,14 @@ const App = () => {
     });
     return map;
   }, []);
-  const tickAudio = useMemo(() => {
-    const audio = new Audio(`${AUDIO_BASE_URL}clock-tick.mp3`);
-    audio.preload = "auto";
-    return audio;
+  const tickTockAudio = useMemo(() => {
+    const tick = new Audio(`${import.meta.env.BASE_URL}tick.mp3`);
+    const tock = new Audio(`${import.meta.env.BASE_URL}tock.mp3`);
+    tick.preload = "auto";
+    tock.preload = "auto";
+    return { tick, tock };
   }, []);
+  const nextTickIsTickRef = useRef(true);
 
   const playSound = useCallback(
     (audioMode: Mode, event: AudioEvent) => {
@@ -219,8 +222,11 @@ const App = () => {
     if (!isRunning) return undefined;
 
     const interval = window.setInterval(() => {
-      tickAudio.currentTime = 0;
-      void tickAudio.play().catch(() => {});
+      const useTick = nextTickIsTickRef.current;
+      const audio = useTick ? tickTockAudio.tick : tickTockAudio.tock;
+      audio.currentTime = 0;
+      void audio.play().catch(() => {});
+      nextTickIsTickRef.current = !useTick;
       setRemaining((prev) => {
         if (prev <= 1) {
           playSound(mode, "end");
@@ -233,7 +239,7 @@ const App = () => {
     }, 1000);
 
     return () => window.clearInterval(interval);
-  }, [isRunning, mode, playSound, tickAudio]);
+  }, [isRunning, mode, playSound, tickTockAudio]);
 
   useEffect(() => {
     if (isRunning && !previousRunningRef.current) {
