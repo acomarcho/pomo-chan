@@ -37,11 +37,22 @@ const createReminderAudio = (language: AppConfig["audioLanguage"]) => {
   return audio;
 };
 
-export const usePomodoroTimer = (config: AppConfig) => {
+type PomodoroTimerOptions = {
+  onVoiceAudioPlay?: (audio: HTMLAudioElement) => void;
+};
+
+export const usePomodoroTimer = (
+  config: AppConfig,
+  options: PomodoroTimerOptions = {},
+) => {
   const [mode, setMode] = useState<Mode>("focus");
   const [remaining, setRemaining] = useState(MODES.focus.seconds);
   const [isRunning, setIsRunning] = useState(false);
   const [pendingMode, setPendingMode] = useState<Mode | null>(null);
+
+  const onVoiceAudioPlayRef = useRef<PomodoroTimerOptions["onVoiceAudioPlay"]>(
+    options.onVoiceAudioPlay,
+  );
 
   const audioMapRef = useRef(buildAudioMap(config.audioLanguage));
   const tickTockRef = useRef(createTickTockAudio());
@@ -55,11 +66,16 @@ export const usePomodoroTimer = (config: AppConfig) => {
     reminderAudioRef.current = createReminderAudio(config.audioLanguage);
   }, [config.audioLanguage]);
 
+  useEffect(() => {
+    onVoiceAudioPlayRef.current = options.onVoiceAudioPlay;
+  }, [options.onVoiceAudioPlay]);
+
   const playSound = useCallback((audioMode: Mode, event: AudioEvent) => {
     const key = `${audioMode}_${event}` as AudioKey;
     const audio = audioMapRef.current[key];
     if (!audio) return;
     audio.currentTime = 0;
+    onVoiceAudioPlayRef.current?.(audio);
     void audio.play().catch((error) => {
       console.warn("Audio play failed", error);
     });
@@ -68,6 +84,7 @@ export const usePomodoroTimer = (config: AppConfig) => {
   const playReminder = useCallback(() => {
     const audio = reminderAudioRef.current;
     audio.currentTime = 0;
+    onVoiceAudioPlayRef.current?.(audio);
     void audio.play().catch((error) => {
       console.warn("Reminder play failed", error);
     });
