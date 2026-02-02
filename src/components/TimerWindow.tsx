@@ -65,7 +65,7 @@ const Live2DStage = ({
   const mouthOpenRef = useRef(0);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
-  const analyserBufferRef = useRef<Uint8Array | null>(null);
+  const analyserBufferRef = useRef<Uint8Array<ArrayBuffer> | null>(null);
   const audioSourcesRef = useRef(
     new Map<HTMLAudioElement, MediaElementAudioSourceNode>(),
   );
@@ -98,7 +98,9 @@ const Live2DStage = ({
       analyser.smoothingTimeConstant = 0.6;
       analyser.connect(audioContext.destination);
       analyserRef.current = analyser;
-      analyserBufferRef.current = new Uint8Array(analyser.fftSize);
+      analyserBufferRef.current = new Uint8Array(
+        new ArrayBuffer(analyser.fftSize),
+      );
     }
     const analyser = analyserRef.current;
     if (!analyser) return;
