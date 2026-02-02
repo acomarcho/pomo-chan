@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "ES2022",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
     "jsx": "react-jsx",
     "types": ["vite/client"],
     "allowJs": true,
@@ -11,7 +12,6 @@
     "sourceMap": true,
     "baseUrl": ".",
     "outDir": "dist",
-    "moduleResolution": "node",
     "resolveJsonModule": true,
     "paths": {
       "@/*": ["./src/*"],
