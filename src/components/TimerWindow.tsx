@@ -233,6 +233,8 @@ const Live2DStage = ({
       try {
         model = await Live2DModel.from(LIVE2D_MODEL_URL, {
           autoInteract: true,
+          // Disable built-in idle motions so the model only moves when we drive it.
+          idleMotionGroup: "__none__",
         });
         if (destroyed) {
           model.destroy();
