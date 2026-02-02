@@ -198,6 +198,11 @@ const App = () => {
     });
     return map;
   }, []);
+  const tickAudio = useMemo(() => {
+    const audio = new Audio(`${AUDIO_BASE_URL}clock-tick.mp3`);
+    audio.preload = "auto";
+    return audio;
+  }, []);
 
   const playSound = useCallback(
     (audioMode: Mode, event: AudioEvent) => {
@@ -214,6 +219,8 @@ const App = () => {
     if (!isRunning) return undefined;
 
     const interval = window.setInterval(() => {
+      tickAudio.currentTime = 0;
+      void tickAudio.play().catch(() => {});
       setRemaining((prev) => {
         if (prev <= 1) {
           playSound(mode, "end");
@@ -226,7 +233,7 @@ const App = () => {
     }, 1000);
 
     return () => window.clearInterval(interval);
-  }, [isRunning, mode, playSound]);
+  }, [isRunning, mode, playSound, tickAudio]);
 
   useEffect(() => {
     if (isRunning && !previousRunningRef.current) {
