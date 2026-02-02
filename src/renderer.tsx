@@ -18,6 +18,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
+import { Settings2 } from "lucide-react";
 import "./styles/globals.css";
 
 (window as typeof window & { PIXI?: typeof PIXI }).PIXI = PIXI;
@@ -42,11 +43,24 @@ type ActiveAppAPI = {
   debug?: () => Promise<unknown>;
 };
 
+type AppConfig = {
+  playTick: boolean;
+  audioLanguage: AudioLanguage;
+};
+
+type ConfigAPI = {
+  get: () => Promise<AppConfig>;
+  set: (value: Partial<AppConfig>) => Promise<AppConfig>;
+  onChange?: (callback: (value: AppConfig) => void) => () => void;
+  openWindow?: () => Promise<boolean>;
+};
+
 declare global {
   interface Window {
     electronAPI?: {
       alwaysOnTop?: AlwaysOnTopAPI;
       activeApp?: ActiveAppAPI;
+      config?: ConfigAPI;
     };
   }
 }
@@ -56,13 +70,56 @@ const MODES: Record<Mode, ModeConfig> = {
   break: { label: "Break", seconds: 5 * 60 },
 };
 
-const AUDIO_LANGUAGE: AudioLanguage = "jp";
 const AUDIO_BASE_URL = `${import.meta.env.BASE_URL}audio/`;
 
 const formatTime = (totalSeconds: number) => {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+};
+
+const DEFAULT_CONFIG: AppConfig = {
+  playTick: false,
+  audioLanguage: "jp",
+};
+
+const useAppConfig = () => {
+  const [config, setConfig] = useState<AppConfig>(DEFAULT_CONFIG);
+  const api = window.electronAPI?.config;
+
+  useEffect(() => {
+    if (!api) return;
+    let isActive = true;
+
+    api
+      .get()
+      .then((stored) => {
+        if (!isActive) return;
+        setConfig({ ...DEFAULT_CONFIG, ...stored });
+      })
+      .catch(() => {});
+
+    const unsubscribe = api.onChange?.((value) => {
+      if (!isActive) return;
+      setConfig({ ...DEFAULT_CONFIG, ...value });
+    });
+
+    return () => {
+      isActive = false;
+      unsubscribe?.();
+    };
+  }, [api]);
+
+  const updateConfig = useCallback(
+    (value: Partial<AppConfig>) => {
+      setConfig((prev) => ({ ...prev, ...value }));
+      if (!api) return;
+      api.set(value).catch(() => {});
+    },
+    [api],
+  );
+
+  return { config, updateConfig, hasApi: Boolean(api) };
 };
 
 const LIVE2D_MODEL_URL = `${import.meta.env.BASE_URL}live2d/hiyori/hiyori_pro_t11.model3.json`;
@@ -169,7 +226,8 @@ const Live2DStage = ({ activeAppName, showActiveApp }: Live2DStageProps) => {
   );
 };
 
-const App = () => {
+const TimerWindow = () => {
+  const { config } = useAppConfig();
   const [mode, setMode] = useState<Mode>("focus");
   const [remaining, setRemaining] = useState(MODES.focus.seconds);
   const [isRunning, setIsRunning] = useState(false);
@@ -182,11 +240,13 @@ const App = () => {
 
   const isAlwaysOnTopAvailable = Boolean(window.electronAPI?.alwaysOnTop);
   const isActiveAppAvailable = Boolean(window.electronAPI?.activeApp);
+  const isConfigAvailable = Boolean(window.electronAPI?.config?.openWindow);
 
   const total = MODES[mode].seconds;
   const audioMap = useMemo(() => {
+    const audioLanguage = config.audioLanguage;
     const buildUrl = (audioMode: Mode, event: AudioEvent) =>
-      `${AUDIO_BASE_URL}${audioMode}_${event}_${AUDIO_LANGUAGE}.mp3`;
+      `${AUDIO_BASE_URL}${audioMode}_${event}_${audioLanguage}.mp3`;
     const map: Record<AudioKey, HTMLAudioElement> = {
       focus_start: new Audio(buildUrl("focus", "start")),
       focus_end: new Audio(buildUrl("focus", "end")),
@@ -197,7 +257,7 @@ const App = () => {
       audio.preload = "auto";
     });
     return map;
-  }, []);
+  }, [config.audioLanguage]);
   const tickTockAudio = useMemo(() => {
     const tick = new Audio(`${AUDIO_BASE_URL}tick.mp3`);
     const tock = new Audio(`${AUDIO_BASE_URL}tock.mp3`);
@@ -222,11 +282,13 @@ const App = () => {
     if (!isRunning) return undefined;
 
     const interval = window.setInterval(() => {
-      const useTick = nextTickIsTickRef.current;
-      const audio = useTick ? tickTockAudio.tick : tickTockAudio.tock;
-      audio.currentTime = 0;
-      void audio.play().catch(() => {});
-      nextTickIsTickRef.current = !useTick;
+      if (config.playTick) {
+        const useTick = nextTickIsTickRef.current;
+        const audio = useTick ? tickTockAudio.tick : tickTockAudio.tock;
+        audio.currentTime = 0;
+        void audio.play().catch(() => {});
+        nextTickIsTickRef.current = !useTick;
+      }
       setRemaining((prev) => {
         if (prev <= 1) {
           playSound(mode, "end");
@@ -240,7 +302,7 @@ const App = () => {
     }, 1000);
 
     return () => window.clearInterval(interval);
-  }, [isRunning, mode, playSound, tickTockAudio]);
+  }, [config.playTick, isRunning, mode, playSound, tickTockAudio]);
 
   useEffect(() => {
     if (isRunning && !previousRunningRef.current) {
@@ -363,17 +425,38 @@ const App = () => {
       setIsAlwaysOnTop(previous);
     }
   };
+  const handleOpenConfig = async () => {
+    const api = window.electronAPI?.config;
+    if (!api?.openWindow) return;
+    try {
+      await api.openWindow();
+    } catch (error) {
+      console.error("Failed to open config window", error);
+    }
+  };
 
   return (
     <div className="flex min-h-screen flex-col bg-white px-4 py-4 text-gray-900">
-      <div className="fixed right-3 top-3 z-20 flex items-center gap-2 rounded-full bg-white/90 px-3 py-1.5 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-gray-600 shadow-sm backdrop-blur">
-        <span>Always on top</span>
-        <Switch
-          checked={isAlwaysOnTop}
-          aria-label="Toggle always on top"
-          disabled={!isAlwaysOnTopAvailable}
-          onCheckedChange={handleAlwaysOnTop}
-        />
+      <div className="fixed right-3 top-3 z-20 flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="rounded-full bg-white/90 text-gray-600 shadow-sm backdrop-blur"
+          onClick={handleOpenConfig}
+          disabled={!isConfigAvailable}
+          aria-label="Open settings"
+        >
+          <Settings2 />
+        </Button>
+        <div className="flex items-center gap-2 rounded-full bg-white/90 px-3 py-1.5 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-gray-600 shadow-sm backdrop-blur">
+          <span>Always on top</span>
+          <Switch
+            checked={isAlwaysOnTop}
+            aria-label="Toggle always on top"
+            disabled={!isAlwaysOnTopAvailable}
+            onCheckedChange={handleAlwaysOnTop}
+          />
+        </div>
       </div>
 
       <section className="flex items-center justify-center pb-3">
@@ -446,6 +529,79 @@ const App = () => {
       </Dialog>
     </div>
   );
+};
+
+const ConfigWindow = () => {
+  const { config, updateConfig } = useAppConfig();
+
+  return (
+    <div className="min-h-screen bg-white px-4 py-5 text-gray-900">
+      <header className="space-y-2 pb-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-500">
+          Preferences
+        </p>
+        <h1 className="text-2xl font-semibold">Pomodoro settings</h1>
+        <p className="text-sm text-gray-500">
+          Changes sync across the timer and this window.
+        </p>
+      </header>
+
+      <section className="space-y-4">
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900">
+                Clock ticking
+              </h2>
+              <p className="text-xs text-gray-500">
+                Play a soft tick while the timer runs.
+              </p>
+            </div>
+            <Switch
+              checked={config.playTick}
+              aria-label="Toggle clock ticking"
+              onCheckedChange={(value) => updateConfig({ playTick: value })}
+            />
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900">
+                Voice language
+              </h2>
+              <p className="text-xs text-gray-500">
+                Start and end announcements.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant={config.audioLanguage === "en" ? "default" : "outline"}
+                onClick={() => updateConfig({ audioLanguage: "en" })}
+              >
+                English
+              </Button>
+              <Button
+                size="sm"
+                variant={config.audioLanguage === "jp" ? "default" : "outline"}
+                onClick={() => updateConfig({ audioLanguage: "jp" })}
+              >
+                Japanese
+              </Button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+};
+
+const App = () => {
+  const isConfigWindow =
+    new URLSearchParams(window.location.search).get("window") === "config";
+  return isConfigWindow ? <ConfigWindow /> : <TimerWindow />;
 };
 
 const root = document.getElementById("root");

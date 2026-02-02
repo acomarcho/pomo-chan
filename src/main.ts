@@ -3,6 +3,7 @@ import { execFile } from "node:child_process";
 import path from "node:path";
 import { promisify } from "node:util";
 import started from "electron-squirrel-startup";
+import Store from "electron-store";
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -10,6 +11,7 @@ if (started) {
 }
 
 let mainWindow: BrowserWindow | null = null;
+let configWindow: BrowserWindow | null = null;
 
 const execFileAsync = promisify(execFile);
 
@@ -18,6 +20,20 @@ type ActiveAppInfo = {
   source?: "lsappinfo";
   error?: string;
 };
+
+type AudioLanguage = "en" | "jp";
+
+type AppConfig = {
+  playTick: boolean;
+  audioLanguage: AudioLanguage;
+};
+
+const configStore = new Store<AppConfig>({
+  defaults: {
+    playTick: false,
+    audioLanguage: "jp",
+  },
+});
 
 const parseLsappinfoName = (output: string) => {
   const match =
@@ -63,6 +79,36 @@ const getActiveAppInfo = async (): Promise<ActiveAppInfo> => {
   }
 };
 
+const getConfig = (): AppConfig => {
+  return {
+    playTick: configStore.get("playTick"),
+    audioLanguage: configStore.get("audioLanguage"),
+  };
+};
+
+const broadcastConfig = (config: AppConfig) => {
+  for (const window of BrowserWindow.getAllWindows()) {
+    if (!window.isDestroyed()) {
+      window.webContents.send("config:changed", config);
+    }
+  }
+};
+
+const loadWindow = (window: BrowserWindow, windowName?: string) => {
+  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+    const url = new URL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
+    if (windowName) {
+      url.searchParams.set("window", windowName);
+    }
+    window.loadURL(url.toString());
+  } else {
+    window.loadFile(
+      path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
+      windowName ? { query: { window: windowName } } : undefined,
+    );
+  }
+};
+
 const createWindow = () => {
   // Create the browser window.
   mainWindow = new BrowserWindow({
@@ -79,13 +125,7 @@ const createWindow = () => {
   });
 
   // and load the index.html of the app.
-  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-    mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
-  } else {
-    mainWindow.loadFile(
-      path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
-    );
-  }
+  loadWindow(mainWindow);
 
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     mainWindow.webContents.openDevTools();
@@ -93,6 +133,33 @@ const createWindow = () => {
 
   mainWindow.on("closed", () => {
     mainWindow = null;
+  });
+};
+
+const createConfigWindow = () => {
+  if (configWindow && !configWindow.isDestroyed()) {
+    configWindow.focus();
+    return;
+  }
+
+  configWindow = new BrowserWindow({
+    width: 360,
+    height: 420,
+    minWidth: 360,
+    minHeight: 420,
+    maxWidth: 360,
+    maxHeight: 420,
+    resizable: false,
+    title: "Settings",
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
+    },
+  });
+
+  loadWindow(configWindow, "config");
+
+  configWindow.on("closed", () => {
+    configWindow = null;
   });
 };
 
@@ -113,6 +180,22 @@ ipcMain.handle("active-app:get", async () => {
 
 ipcMain.handle("active-app:debug", async () => {
   return getActiveAppInfo();
+});
+
+ipcMain.handle("config:get", () => {
+  return getConfig();
+});
+
+ipcMain.handle("config:set", (_event, value: Partial<AppConfig>) => {
+  const nextConfig = { ...getConfig(), ...value };
+  configStore.set(nextConfig);
+  broadcastConfig(nextConfig);
+  return nextConfig;
+});
+
+ipcMain.handle("config:open", () => {
+  createConfigWindow();
+  return true;
 });
 
 // This method will be called when Electron has finished
