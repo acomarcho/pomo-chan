@@ -78,6 +78,8 @@ const Live2DStage = ({
   const activeAudioRef = useRef<HTMLAudioElement | null>(null);
   const internalModelRef = useRef<InternalModelWithEvents | null>(null);
 
+  // Wire a voice audio element into a shared AudioContext + analyser so we can
+  // read its volume in real time and drive the mouth parameter while it plays.
   const setupVoiceAudio = useCallback((audio: HTMLAudioElement) => {
     const AudioContextCtor =
       window.AudioContext ||
@@ -163,6 +165,8 @@ const Live2DStage = ({
 
     let model: Live2DModel | null = null;
     const modelBaseSize = { width: 0, height: 0 };
+    // Sample the current voice audio amplitude, smooth it, then write that
+    // value into the model's mouth-open parameter each frame.
     const updateLipSync = () => {
       const modelInstance = live2dModelRef.current;
       const coreModel = modelInstance?.internalModel?.coreModel as
@@ -206,6 +210,12 @@ const Live2DStage = ({
         ids.forEach((id) => coreModel.setParamFloat?.(id, value));
       }
     };
+    const useInternalEventsRef = { current: false };
+    const tickLipSync = () => {
+      if (useInternalEventsRef.current) return;
+      updateLipSync();
+    };
+    app.ticker.add(tickLipSync);
 
     const fitModel = () => {
       if (!model) return;
@@ -244,6 +254,7 @@ const Live2DStage = ({
           if (internalModel?.on) {
             internalModel.on("afterMotionUpdate", updateLipSync);
             internalModelRef.current = internalModel;
+            useInternalEventsRef.current = true;
           }
         });
         void (async () => {
@@ -287,6 +298,7 @@ const Live2DStage = ({
         internalModelRef.current.off("afterMotionUpdate", updateLipSync);
         internalModelRef.current = null;
       }
+      app.ticker.remove(tickLipSync);
       app.renderer.off("resize", fitModel);
       if (canvas && canvas.parentNode === container) {
         container.removeChild(canvas);
