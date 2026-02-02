@@ -199,8 +199,8 @@ const App = () => {
     return map;
   }, []);
   const tickTockAudio = useMemo(() => {
-    const tick = new Audio(`${import.meta.env.BASE_URL}tick.mp3`);
-    const tock = new Audio(`${import.meta.env.BASE_URL}tock.mp3`);
+    const tick = new Audio(`${AUDIO_BASE_URL}tick.mp3`);
+    const tock = new Audio(`${AUDIO_BASE_URL}tock.mp3`);
     tick.preload = "auto";
     tock.preload = "auto";
     return { tick, tock };
