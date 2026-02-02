@@ -196,8 +196,6 @@ const Live2DStage = ({
         }
       }
 
-      if (!activeAudio && mouthOpenRef.current <= 0.001) return;
-
       const current = mouthOpenRef.current;
       const smoothing = target > current ? LIP_SYNC_ATTACK : LIP_SYNC_RELEASE;
       const next = current + (target - current) * smoothing;
@@ -255,6 +253,9 @@ const Live2DStage = ({
             internalModel.on("afterMotionUpdate", updateLipSync);
             internalModelRef.current = internalModel;
             useInternalEventsRef.current = true;
+          }
+          if (internalModel && "lipSync" in internalModel) {
+            (internalModel as { lipSync?: boolean }).lipSync = false;
           }
         });
         void (async () => {
