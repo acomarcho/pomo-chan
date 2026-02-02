@@ -218,6 +218,7 @@ const App = () => {
         if (prev <= 1) {
           playSound(mode, "end");
           const nextMode: Mode = mode === "focus" ? "break" : "focus";
+          setIsRunning(false);
           setMode(nextMode);
           return MODES[nextMode].seconds;
         }
