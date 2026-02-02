@@ -94,6 +94,16 @@ const broadcastConfig = (config: AppConfig) => {
   }
 };
 
+const syncConfigWindowAlwaysOnTop = () => {
+  if (!configWindow || configWindow.isDestroyed()) return;
+  const shouldFloat = mainWindow?.isAlwaysOnTop() ?? false;
+  if (shouldFloat) {
+    configWindow.setAlwaysOnTop(true, "modal-panel");
+  } else {
+    configWindow.setAlwaysOnTop(false);
+  }
+};
+
 const loadWindow = (window: BrowserWindow, windowName?: string) => {
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     const url = new URL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
@@ -138,6 +148,7 @@ const createWindow = () => {
 
 const createConfigWindow = () => {
   if (configWindow && !configWindow.isDestroyed()) {
+    syncConfigWindowAlwaysOnTop();
     configWindow.focus();
     return;
   }
@@ -157,6 +168,7 @@ const createConfigWindow = () => {
   });
 
   loadWindow(configWindow, "config");
+  syncConfigWindowAlwaysOnTop();
 
   configWindow.on("closed", () => {
     configWindow = null;
@@ -170,6 +182,7 @@ ipcMain.handle("always-on-top:get", () => {
 ipcMain.handle("always-on-top:set", (_event, value: boolean) => {
   if (!mainWindow) return false;
   mainWindow.setAlwaysOnTop(Boolean(value), "floating");
+  syncConfigWindowAlwaysOnTop();
   return mainWindow.isAlwaysOnTop();
 });
 
