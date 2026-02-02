@@ -60,13 +60,17 @@ export const usePomodoroTimer = (config: AppConfig) => {
     const audio = audioMapRef.current[key];
     if (!audio) return;
     audio.currentTime = 0;
-    void audio.play().catch(() => {});
+    void audio.play().catch((error) => {
+      console.warn("Audio play failed", error);
+    });
   }, []);
 
   const playReminder = useCallback(() => {
     const audio = reminderAudioRef.current;
     audio.currentTime = 0;
-    void audio.play().catch(() => {});
+    void audio.play().catch((error) => {
+      console.warn("Reminder play failed", error);
+    });
   }, []);
 
   const clearReminderTimeout = useCallback(() => {
@@ -94,7 +98,9 @@ export const usePomodoroTimer = (config: AppConfig) => {
         const useTick = nextTickIsTickRef.current;
         const audio = useTick ? tick : tock;
         audio.currentTime = 0;
-        void audio.play().catch(() => {});
+        void audio.play().catch((error) => {
+          console.warn("Tick-tock play failed", error);
+        });
         nextTickIsTickRef.current = !useTick;
       }
 

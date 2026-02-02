@@ -51,7 +51,9 @@ export const useAppConfig = () => {
         if (!isActive) return;
         setConfig({ ...DEFAULT_CONFIG, ...stored });
       })
-      .catch(() => {});
+      .catch((error) => {
+        console.error("Failed to load config", error);
+      });
 
     const unsubscribe = api.onChange?.((value) => {
       if (!isActive) return;
@@ -68,7 +70,9 @@ export const useAppConfig = () => {
     (value: Partial<AppConfig>) => {
       setConfig((prev) => ({ ...prev, ...value }));
       if (!api) return;
-      api.set(value).catch(() => {});
+      api.set(value).catch((error) => {
+        console.error("Failed to update config", error);
+      });
     },
     [api],
   );
@@ -90,7 +94,9 @@ export const useAlwaysOnTop = () => {
           setValue(nextValue);
         }
       })
-      .catch(() => {});
+      .catch((error) => {
+        console.error("Failed to read always-on-top", error);
+      });
     return () => {
       isActive = false;
     };
