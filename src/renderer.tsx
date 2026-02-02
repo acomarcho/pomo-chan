@@ -198,6 +198,14 @@ const App = () => {
     });
     return map;
   }, []);
+  const tickTockAudio = useMemo(() => {
+    const tick = new Audio(`${AUDIO_BASE_URL}tick.mp3`);
+    const tock = new Audio(`${AUDIO_BASE_URL}tock.mp3`);
+    tick.preload = "auto";
+    tock.preload = "auto";
+    return { tick, tock };
+  }, []);
+  const nextTickIsTickRef = useRef(true);
 
   const playSound = useCallback(
     (audioMode: Mode, event: AudioEvent) => {
@@ -214,6 +222,11 @@ const App = () => {
     if (!isRunning) return undefined;
 
     const interval = window.setInterval(() => {
+      const useTick = nextTickIsTickRef.current;
+      const audio = useTick ? tickTockAudio.tick : tickTockAudio.tock;
+      audio.currentTime = 0;
+      void audio.play().catch(() => {});
+      nextTickIsTickRef.current = !useTick;
       setRemaining((prev) => {
         if (prev <= 1) {
           playSound(mode, "end");
@@ -227,7 +240,7 @@ const App = () => {
     }, 1000);
 
     return () => window.clearInterval(interval);
-  }, [isRunning, mode, playSound]);
+  }, [isRunning, mode, playSound, tickTockAudio]);
 
   useEffect(() => {
     if (isRunning && !previousRunningRef.current) {
