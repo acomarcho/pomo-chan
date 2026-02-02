@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MODES, type Mode } from "@/lib/pomodoro";
 import type { AppConfig } from "@/lib/hooks/app-hooks";
+import {
+  AMBIENT_SOUNDS,
+  AMBIENT_SOUND_FILES,
+  type AmbientSound,
+} from "@/lib/ambient";
 
 type AudioEvent = "start" | "end";
 type AudioKey = `${Mode}_${AudioEvent}`;
@@ -37,6 +42,22 @@ const createReminderAudio = (language: AppConfig["audioLanguage"]) => {
   return audio;
 };
 
+type AmbientAudioMap = Record<AmbientSound, HTMLAudioElement>;
+
+const createAmbientAudioMap = () => {
+  const map = {} as AmbientAudioMap;
+  AMBIENT_SOUNDS.forEach((sound) => {
+    const audio = new Audio(`${AUDIO_BASE_URL}${AMBIENT_SOUND_FILES[sound]}`);
+    audio.preload = "auto";
+    audio.loop = true;
+    map[sound] = audio;
+  });
+  return map;
+};
+
+const clampAmbientVolume = (value: number) =>
+  Math.min(1, Math.max(0, value / 100));
+
 type PomodoroTimerOptions = {
   onVoiceAudioPlay?: (audio: HTMLAudioElement) => void;
 };
@@ -57,6 +78,7 @@ export const usePomodoroTimer = (
   const audioMapRef = useRef(buildAudioMap(config.audioLanguage));
   const tickTockRef = useRef(createTickTockAudio());
   const reminderAudioRef = useRef(createReminderAudio(config.audioLanguage));
+  const ambientAudioRef = useRef(createAmbientAudioMap());
   const reminderTimeoutRef = useRef<number | null>(null);
   const isRunningRef = useRef(isRunning);
   const nextTickIsTickRef = useRef(true);
@@ -65,6 +87,37 @@ export const usePomodoroTimer = (
     audioMapRef.current = buildAudioMap(config.audioLanguage);
     reminderAudioRef.current = createReminderAudio(config.audioLanguage);
   }, [config.audioLanguage]);
+
+  useEffect(() => {
+    const map = ambientAudioRef.current;
+    AMBIENT_SOUNDS.forEach((sound) => {
+      const audio = map[sound];
+      const volumeValue = config.ambientVolumes?.[sound] ?? 0;
+      const volume = clampAmbientVolume(volumeValue);
+      audio.volume = volume;
+
+      if (!isRunning || volume === 0) {
+        if (!audio.paused) {
+          audio.pause();
+        }
+        return;
+      }
+
+      if (audio.paused) {
+        void audio.play().catch((error) => {
+          console.warn(`Ambient ${sound} play failed`, error);
+        });
+      }
+    });
+  }, [config.ambientVolumes, isRunning]);
+
+  useEffect(() => {
+    return () => {
+      Object.values(ambientAudioRef.current).forEach((audio) => {
+        audio.pause();
+      });
+    };
+  }, []);
 
   useEffect(() => {
     onVoiceAudioPlayRef.current = options.onVoiceAudioPlay;

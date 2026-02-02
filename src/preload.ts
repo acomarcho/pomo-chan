@@ -3,10 +3,16 @@
 import { contextBridge, ipcRenderer } from "electron";
 
 type AudioLanguage = "en" | "jp";
+type AmbientVolumes = {
+  fire: number;
+  rain: number;
+  forest: number;
+};
 
 type AppConfig = {
   playTick: boolean;
   audioLanguage: AudioLanguage;
+  ambientVolumes: AmbientVolumes;
 };
 
 const alwaysOnTop = {
