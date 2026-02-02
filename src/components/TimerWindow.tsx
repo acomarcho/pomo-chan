@@ -26,10 +26,10 @@ import { usePomodoroTimer } from "@/lib/hooks/timer-hooks";
 const LIVE2D_MODEL_URL = `${import.meta.env.BASE_URL}live2d/hiyori/hiyori_pro_t11.model3.json`;
 const LIVE2D_ZOOM = 3;
 const LIVE2D_Y_OFFSET = 0.9;
-const LIP_SYNC_GAIN = 5;
-const LIP_SYNC_SILENCE_THRESHOLD = 0.005;
-const LIP_SYNC_ATTACK = 0.5;
-const LIP_SYNC_RELEASE = 0.25;
+const LIP_SYNC_GAIN = 9;
+const LIP_SYNC_SILENCE_THRESHOLD = 0.002;
+const LIP_SYNC_ATTACK = 0.6;
+const LIP_SYNC_RELEASE = 0.3;
 
 type VoiceAudioSignal = {
   audio: HTMLAudioElement | null;
