@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
+import { DEFAULT_AMBIENT_VOLUMES, type AmbientSound } from "@/lib/ambient";
 
 export type AppConfig = {
   playTick: boolean;
   audioLanguage: "en" | "jp";
+  ambientVolumes: Record<AmbientSound, number>;
 };
 
 type AlwaysOnTopAPI = {
@@ -35,7 +37,15 @@ declare global {
 const DEFAULT_CONFIG: AppConfig = {
   playTick: false,
   audioLanguage: "jp",
+  ambientVolumes: { ...DEFAULT_AMBIENT_VOLUMES },
 };
+
+const mergeAmbientVolumes = (
+  volumes?: Partial<Record<AmbientSound, number>>,
+) => ({
+  ...DEFAULT_AMBIENT_VOLUMES,
+  ...(volumes ?? {}),
+});
 
 export const useAppConfig = () => {
   const [config, setConfig] = useState<AppConfig>(DEFAULT_CONFIG);
@@ -49,7 +59,11 @@ export const useAppConfig = () => {
       .get()
       .then((stored) => {
         if (!isActive) return;
-        setConfig({ ...DEFAULT_CONFIG, ...stored });
+        setConfig({
+          ...DEFAULT_CONFIG,
+          ...stored,
+          ambientVolumes: mergeAmbientVolumes(stored?.ambientVolumes),
+        });
       })
       .catch((error) => {
         console.error("Failed to load config", error);
@@ -57,7 +71,11 @@ export const useAppConfig = () => {
 
     const unsubscribe = api.onChange?.((value) => {
       if (!isActive) return;
-      setConfig({ ...DEFAULT_CONFIG, ...value });
+      setConfig({
+        ...DEFAULT_CONFIG,
+        ...value,
+        ambientVolumes: mergeAmbientVolumes(value?.ambientVolumes),
+      });
     });
 
     return () => {
@@ -68,7 +86,12 @@ export const useAppConfig = () => {
 
   const updateConfig = useCallback(
     (value: Partial<AppConfig>) => {
-      setConfig((prev) => ({ ...prev, ...value }));
+      setConfig((prev) => {
+        const nextAmbient = value.ambientVolumes
+          ? { ...prev.ambientVolumes, ...value.ambientVolumes }
+          : prev.ambientVolumes;
+        return { ...prev, ...value, ambientVolumes: nextAmbient };
+      });
       if (!api) return;
       api.set(value).catch((error) => {
         console.error("Failed to update config", error);

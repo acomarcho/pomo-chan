@@ -22,16 +22,27 @@ type ActiveAppInfo = {
 };
 
 type AudioLanguage = "en" | "jp";
+type AmbientVolumes = {
+  fire: number;
+  rain: number;
+  forest: number;
+};
 
 type AppConfig = {
   playTick: boolean;
   audioLanguage: AudioLanguage;
+  ambientVolumes: AmbientVolumes;
 };
 
 const configStore = new Store<AppConfig>({
   defaults: {
     playTick: false,
     audioLanguage: "jp",
+    ambientVolumes: {
+      fire: 0,
+      rain: 0,
+      forest: 0,
+    },
   },
 });
 
@@ -83,6 +94,7 @@ const getConfig = (): AppConfig => {
   return {
     playTick: configStore.get("playTick"),
     audioLanguage: configStore.get("audioLanguage"),
+    ambientVolumes: configStore.get("ambientVolumes"),
   };
 };
 
@@ -155,11 +167,11 @@ const createConfigWindow = () => {
 
   configWindow = new BrowserWindow({
     width: 360,
-    height: 420,
+    height: 520,
     minWidth: 360,
-    minHeight: 420,
+    minHeight: 520,
     maxWidth: 360,
-    maxHeight: 420,
+    maxHeight: 520,
     resizable: false,
     title: "Settings",
     webPreferences: {
@@ -200,7 +212,15 @@ ipcMain.handle("config:get", () => {
 });
 
 ipcMain.handle("config:set", (_event, value: Partial<AppConfig>) => {
-  const nextConfig = { ...getConfig(), ...value };
+  const current = getConfig();
+  const nextConfig = {
+    ...current,
+    ...value,
+    ambientVolumes: {
+      ...current.ambientVolumes,
+      ...(value.ambientVolumes ?? {}),
+    },
+  };
   configStore.set(nextConfig);
   broadcastConfig(nextConfig);
   return nextConfig;
