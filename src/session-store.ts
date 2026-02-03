@@ -1,5 +1,6 @@
 import Database from "better-sqlite3";
 import { app } from "electron";
+import fs from "node:fs";
 import path from "node:path";
 
 export type SessionEntry = {
@@ -14,10 +15,19 @@ export type SessionList = {
 };
 
 let db: Database | null = null;
+let didApplyFreshStart = false;
 
 const ensureDb = () => {
   if (db) return db;
   const dbPath = path.join(app.getPath("userData"), "pomo-chan.sqlite");
+  if (!didApplyFreshStart) {
+    didApplyFreshStart = true;
+    if (process.env.FRESH_START === "1") {
+      fs.rmSync(dbPath, { force: true });
+      fs.rmSync(`${dbPath}-wal`, { force: true });
+      fs.rmSync(`${dbPath}-shm`, { force: true });
+    }
+  }
   db = new Database(dbPath);
   db.pragma("journal_mode = WAL");
   db.exec(`
