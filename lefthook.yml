@@ -4,6 +4,7 @@ pre-commit:
     prettier:
       files: git diff --name-only --cached --diff-filter=ACMR -- src "*.json"
       run: npx prettier --write --ignore-unknown {files}
+      stage_fixed: true
 
 pre-push:
   commands:
