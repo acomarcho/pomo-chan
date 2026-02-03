@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, ipcMain, screen } from "electron";
 import { execFile } from "node:child_process";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -137,6 +137,18 @@ const syncAuxWindowsAlwaysOnTop = () => {
   syncFloatingWindowAlwaysOnTop(historyWindow, shouldFloat);
 };
 
+const getOffsetPositionFromMain = (size: { width: number; height: number }) => {
+  if (!mainWindow || mainWindow.isDestroyed()) return undefined;
+  const offset = 24;
+  const mainBounds = mainWindow.getBounds();
+  const workArea = screen.getDisplayMatching(mainBounds).workArea;
+  const maxX = workArea.x + workArea.width - size.width;
+  const maxY = workArea.y + workArea.height - size.height;
+  const x = Math.min(Math.max(mainBounds.x + offset, workArea.x), maxX);
+  const y = Math.min(Math.max(mainBounds.y + offset, workArea.y), maxY);
+  return { x, y };
+};
+
 const loadWindow = (window: BrowserWindow, windowName?: string) => {
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     const url = new URL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
@@ -186,13 +198,16 @@ const createConfigWindow = () => {
     return;
   }
 
+  const size = { width: 360, height: 520 };
+  const position = getOffsetPositionFromMain(size);
   configWindow = new BrowserWindow({
-    width: 360,
-    height: 520,
-    minWidth: 360,
-    minHeight: 520,
-    maxWidth: 360,
-    maxHeight: 520,
+    width: size.width,
+    height: size.height,
+    minWidth: size.width,
+    minHeight: size.height,
+    maxWidth: size.width,
+    maxHeight: size.height,
+    ...(position ?? {}),
     resizable: false,
     title: "Settings",
     webPreferences: {
@@ -215,11 +230,14 @@ const createHistoryWindow = () => {
     return;
   }
 
+  const size = { width: 520, height: 520 };
+  const position = getOffsetPositionFromMain(size);
   historyWindow = new BrowserWindow({
-    width: 520,
-    height: 520,
+    width: size.width,
+    height: size.height,
     minWidth: 420,
     minHeight: 360,
+    ...(position ?? {}),
     resizable: true,
     title: "Session History",
     webPreferences: {
