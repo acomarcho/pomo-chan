@@ -9,6 +9,9 @@ const compat = new FlatCompat({
 });
 
 module.exports = [
+  {
+    ignores: ["public/**"],
+  },
   ...compat.extends(
     "eslint:recommended",
     "plugin:@typescript-eslint/eslint-recommended",
@@ -40,6 +43,12 @@ module.exports = [
           extensions: [".ts", ".tsx", ".js", ".jsx", ".json"],
         },
       },
+    },
+  },
+  {
+    files: ["eslint.config.cjs"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
     },
   },
 ];

@@ -197,7 +197,7 @@ export const useActiveAppName = (pollInterval = 1000) => {
         const nextName = await api.get();
         if (!isActive) return;
         setName(nextName || "Unknown");
-      } catch (error) {
+      } catch {
         if (isActive) {
           setName("Unavailable");
         }
