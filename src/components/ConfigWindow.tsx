@@ -164,10 +164,7 @@ export const ConfigWindow = () => {
                       step={1}
                       value={value}
                       onChange={(event) =>
-                        handleAmbientChange(
-                          sound,
-                          Number(event.target.value),
-                        )
+                        handleAmbientChange(sound, Number(event.target.value))
                       }
                       className="h-2 w-full cursor-pointer accent-gray-900"
                       aria-label={`${AMBIENT_SOUND_LABELS[sound]} volume`}

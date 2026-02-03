@@ -255,12 +255,15 @@ export const usePomodoroTimer = (
     };
   }, [clearReminderTimeout, isRunning, scheduleReminder]);
 
-  const applyModeSwitch = useCallback((nextMode: Mode) => {
-    setIsRunning(false);
-    setMode(nextMode);
-    setRemaining(getSecondsForMode(nextMode));
-    focusStartedAtRef.current = null;
-  }, [getSecondsForMode]);
+  const applyModeSwitch = useCallback(
+    (nextMode: Mode) => {
+      setIsRunning(false);
+      setMode(nextMode);
+      setRemaining(getSecondsForMode(nextMode));
+      focusStartedAtRef.current = null;
+    },
+    [getSecondsForMode],
+  );
 
   const toggleRunning = useCallback(() => {
     setIsRunning((prev) => {

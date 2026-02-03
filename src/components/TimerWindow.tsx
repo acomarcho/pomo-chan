@@ -183,7 +183,12 @@ const Live2DStage = ({
       const activeAudio = activeAudioRef.current;
       let target = 0;
 
-      if (activeAudio && analyser && !activeAudio.paused && !activeAudio.ended) {
+      if (
+        activeAudio &&
+        analyser &&
+        !activeAudio.paused &&
+        !activeAudio.ended
+      ) {
         const buffer = analyserBufferRef.current;
         if (buffer) {
           analyser.getByteTimeDomainData(buffer);
@@ -430,14 +435,14 @@ export const TimerWindow = () => {
         </Button>
         <div className="flex items-center gap-2 rounded-full bg-white/90 px-3 py-1.5 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-gray-600 shadow-sm backdrop-blur">
           <span>Always on top</span>
-            <Switch
-              checked={isAlwaysOnTop}
-              aria-label="Toggle always on top"
-              disabled={!isAlwaysOnTopAvailable}
-              onCheckedChange={setAlwaysOnTop}
-            />
-          </div>
+          <Switch
+            checked={isAlwaysOnTop}
+            aria-label="Toggle always on top"
+            disabled={!isAlwaysOnTopAvailable}
+            onCheckedChange={setAlwaysOnTop}
+          />
         </div>
+      </div>
 
       <section className="flex items-center justify-center pb-3">
         <Live2DStage
