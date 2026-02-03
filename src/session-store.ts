@@ -14,7 +14,7 @@ export type SessionList = {
   total: number;
 };
 
-let db: Database | null = null;
+let db: Database.Database | null = null;
 let didApplyFreshStart = false;
 
 const ensureDb = () => {
