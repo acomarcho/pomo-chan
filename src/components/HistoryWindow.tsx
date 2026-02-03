@@ -132,10 +132,7 @@ export const HistoryWindow = () => {
       </header>
 
       <section className="space-y-3">
-        <Dialog
-          open={showImportConfirm}
-          onOpenChange={setShowImportConfirm}
-        >
+        <Dialog open={showImportConfirm} onOpenChange={setShowImportConfirm}>
           <DialogContent className="text-left">
             <DialogHeader>
               <DialogTitle>Replace session history?</DialogTitle>
