@@ -108,14 +108,22 @@ const broadcastConfig = (config: AppConfig) => {
   }
 };
 
-const syncConfigWindowAlwaysOnTop = () => {
-  if (!configWindow || configWindow.isDestroyed()) return;
-  const shouldFloat = mainWindow?.isAlwaysOnTop() ?? false;
+const syncFloatingWindowAlwaysOnTop = (
+  window: BrowserWindow | null,
+  shouldFloat: boolean,
+) => {
+  if (!window || window.isDestroyed()) return;
   if (shouldFloat) {
-    configWindow.setAlwaysOnTop(true, "modal-panel");
+    window.setAlwaysOnTop(true, "modal-panel");
   } else {
-    configWindow.setAlwaysOnTop(false);
+    window.setAlwaysOnTop(false);
   }
+};
+
+const syncAuxWindowsAlwaysOnTop = () => {
+  const shouldFloat = mainWindow?.isAlwaysOnTop() ?? false;
+  syncFloatingWindowAlwaysOnTop(configWindow, shouldFloat);
+  syncFloatingWindowAlwaysOnTop(historyWindow, shouldFloat);
 };
 
 const loadWindow = (window: BrowserWindow, windowName?: string) => {
@@ -162,7 +170,7 @@ const createWindow = () => {
 
 const createConfigWindow = () => {
   if (configWindow && !configWindow.isDestroyed()) {
-    syncConfigWindowAlwaysOnTop();
+    syncAuxWindowsAlwaysOnTop();
     configWindow.focus();
     return;
   }
@@ -182,7 +190,7 @@ const createConfigWindow = () => {
   });
 
   loadWindow(configWindow, "config");
-  syncConfigWindowAlwaysOnTop();
+  syncAuxWindowsAlwaysOnTop();
 
   configWindow.on("closed", () => {
     configWindow = null;
@@ -191,6 +199,7 @@ const createConfigWindow = () => {
 
 const createHistoryWindow = () => {
   if (historyWindow && !historyWindow.isDestroyed()) {
+    syncAuxWindowsAlwaysOnTop();
     historyWindow.focus();
     return;
   }
@@ -208,6 +217,7 @@ const createHistoryWindow = () => {
   });
 
   loadWindow(historyWindow, "history");
+  syncAuxWindowsAlwaysOnTop();
 
   historyWindow.on("closed", () => {
     historyWindow = null;
@@ -221,7 +231,7 @@ ipcMain.handle("always-on-top:get", () => {
 ipcMain.handle("always-on-top:set", (_event, value: boolean) => {
   if (!mainWindow) return false;
   mainWindow.setAlwaysOnTop(Boolean(value), "floating");
-  syncConfigWindowAlwaysOnTop();
+  syncAuxWindowsAlwaysOnTop();
   return mainWindow.isAlwaysOnTop();
 });
 
