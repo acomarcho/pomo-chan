@@ -91,6 +91,8 @@ export const usePomodoroTimer = (
     break: getModeSeconds("break", config.focusMinutes, config.breakMinutes),
   });
 
+  // Keep duration changes in sync when idle: update totals and adjust remaining
+  // only if we're still at the full duration or the new total is shorter.
   useEffect(() => {
     audioMapRef.current = buildAudioMap(config.audioLanguage);
     reminderAudioRef.current = createReminderAudio(config.audioLanguage);
