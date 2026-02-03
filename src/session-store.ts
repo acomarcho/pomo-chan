@@ -9,6 +9,11 @@ export type SessionEntry = {
   endedAt: string;
 };
 
+export type SessionRecord = {
+  startedAt: string;
+  endedAt: string;
+};
+
 export type SessionList = {
   items: SessionEntry[];
   total: number;
@@ -64,6 +69,30 @@ export const listSessions = (page: number, pageSize: number): SessionList => {
     .prepare("SELECT COUNT(*) AS count FROM sessions")
     .get() as { count: number };
   return { items, total: Number(totalRow.count) };
+};
+
+export const listAllSessions = (): SessionRecord[] => {
+  const database = ensureDb();
+  return database
+    .prepare(
+      "SELECT started_at AS startedAt, ended_at AS endedAt FROM sessions ORDER BY started_at ASC",
+    )
+    .all() as SessionRecord[];
+};
+
+export const replaceSessions = (entries: SessionRecord[]) => {
+  const database = ensureDb();
+  const insert = database.prepare(
+    "INSERT INTO sessions (started_at, ended_at) VALUES (?, ?)",
+  );
+  const replace = database.transaction((records: SessionRecord[]) => {
+    database.exec("DELETE FROM sessions");
+    database.exec("DELETE FROM sqlite_sequence WHERE name = 'sessions'");
+    for (const record of records) {
+      insert.run(record.startedAt, record.endedAt);
+    }
+  });
+  replace(entries);
 };
 
 export const closeSessionStore = () => {

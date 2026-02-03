@@ -1,10 +1,18 @@
-import { app, BrowserWindow, ipcMain, screen } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, screen } from "electron";
 import { execFile } from "node:child_process";
+import fs from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import started from "electron-squirrel-startup";
 import Store from "electron-store";
-import { addSession, closeSessionStore, listSessions } from "./session-store";
+import {
+  addSession,
+  closeSessionStore,
+  listAllSessions,
+  listSessions,
+  replaceSessions,
+  type SessionRecord,
+} from "./session-store";
 import {
   DEFAULT_BREAK_MINUTES,
   DEFAULT_FOCUS_MINUTES,
@@ -149,6 +157,9 @@ const getOffsetPositionFromMain = (size: { width: number; height: number }) => {
   return { x, y };
 };
 
+const getDialogParent = () =>
+  historyWindow ?? mainWindow ?? BrowserWindow.getFocusedWindow();
+
 const loadWindow = (window: BrowserWindow, windowName?: string) => {
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     const url = new URL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
@@ -230,12 +241,12 @@ const createHistoryWindow = () => {
     return;
   }
 
-  const size = { width: 520, height: 520 };
+  const size = { width: 600, height: 520 };
   const position = getOffsetPositionFromMain(size);
   historyWindow = new BrowserWindow({
     width: size.width,
     height: size.height,
-    minWidth: 420,
+    minWidth: 500,
     minHeight: 360,
     ...(position ?? {}),
     resizable: true,
@@ -325,6 +336,120 @@ ipcMain.handle(
     return listSessions(value.page, value.pageSize);
   },
 );
+
+const extractSessionRecords = (
+  payload: unknown,
+): { records: SessionRecord[]; recognized: boolean; sourceCount: number } => {
+  if (!payload || typeof payload !== "object") {
+    return { records: [], recognized: false, sourceCount: 0 };
+  }
+
+  const root = payload as { sessions?: unknown };
+  if (!Array.isArray(root.sessions)) {
+    return { records: [], recognized: false, sourceCount: 0 };
+  }
+
+  const records = root.sessions
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") return null;
+      const candidate = entry as { startedAt?: unknown; endedAt?: unknown };
+      if (
+        typeof candidate.startedAt !== "string" ||
+        typeof candidate.endedAt !== "string"
+      ) {
+        return null;
+      }
+      return {
+        startedAt: candidate.startedAt,
+        endedAt: candidate.endedAt,
+      };
+    })
+    .filter(Boolean) as SessionRecord[];
+
+  return {
+    records,
+    recognized: true,
+    sourceCount: root.sessions.length,
+  };
+};
+
+ipcMain.handle("sessions:export", async () => {
+  const parent = getDialogParent();
+  const now = new Date();
+  const padded = (value: number) => String(value).padStart(2, "0");
+  const timestamp = `${now.getFullYear()}${padded(now.getMonth() + 1)}${padded(
+    now.getDate(),
+  )}-${padded(now.getHours())}${padded(now.getMinutes())}${padded(
+    now.getSeconds(),
+  )}`;
+  const { canceled, filePath } = await dialog.showSaveDialog(parent, {
+    title: "Export sessions",
+    defaultPath: path.join(
+      app.getPath("downloads"),
+      `pomo-chan-sessions-${timestamp}.json`,
+    ),
+    filters: [{ name: "JSON", extensions: ["json"] }],
+  });
+  if (canceled || !filePath) {
+    return { ok: false, reason: "canceled" } as const;
+  }
+
+  const sessions = listAllSessions();
+  const payload = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    sessions,
+  };
+
+  try {
+    await fs.writeFile(filePath, JSON.stringify(payload, null, 2), "utf8");
+    return { ok: true, count: sessions.length, filePath } as const;
+  } catch (error) {
+    console.error("Failed to export sessions", error);
+    return { ok: false, reason: "write-failed" } as const;
+  }
+});
+
+ipcMain.handle("sessions:import", async () => {
+  const parent = getDialogParent();
+  const { canceled, filePaths } = await dialog.showOpenDialog(parent, {
+    title: "Import sessions",
+    filters: [{ name: "JSON", extensions: ["json"] }],
+    properties: ["openFile"],
+  });
+  if (canceled || filePaths.length === 0) {
+    return { ok: false, reason: "canceled" } as const;
+  }
+
+  let raw = "";
+  try {
+    raw = await fs.readFile(filePaths[0], "utf8");
+  } catch (error) {
+    console.error("Failed to read sessions file", error);
+    return { ok: false, reason: "read-failed" } as const;
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (error) {
+    console.error("Failed to parse sessions file", error);
+    return { ok: false, reason: "invalid-format" } as const;
+  }
+
+  const { records, recognized, sourceCount } = extractSessionRecords(parsed);
+  if (!recognized || (sourceCount > 0 && records.length === 0)) {
+    return { ok: false, reason: "invalid-format" } as const;
+  }
+
+  try {
+    replaceSessions(records);
+    return { ok: true, count: records.length } as const;
+  } catch (error) {
+    console.error("Failed to import sessions", error);
+    return { ok: false, reason: "write-failed" } as const;
+  }
+});
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.

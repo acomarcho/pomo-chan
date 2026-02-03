@@ -28,6 +28,13 @@ type SessionList = {
   total: number;
 };
 
+type SessionTransferResult = {
+  ok: boolean;
+  count?: number;
+  filePath?: string;
+  reason?: "canceled" | "invalid-format" | "read-failed" | "write-failed";
+};
+
 const alwaysOnTop = {
   get: () => ipcRenderer.invoke("always-on-top:get"),
   set: (value: boolean) => ipcRenderer.invoke("always-on-top:set", value),
@@ -61,6 +68,10 @@ const sessions = {
     ipcRenderer.invoke("session:add", value) as Promise<number>,
   list: (value: { page: number; pageSize: number }) =>
     ipcRenderer.invoke("sessions:list", value) as Promise<SessionList>,
+  export: () =>
+    ipcRenderer.invoke("sessions:export") as Promise<SessionTransferResult>,
+  import: () =>
+    ipcRenderer.invoke("sessions:import") as Promise<SessionTransferResult>,
 };
 
 contextBridge.exposeInMainWorld("electronAPI", {

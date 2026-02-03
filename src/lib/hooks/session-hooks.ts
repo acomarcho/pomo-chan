@@ -11,6 +11,13 @@ type SessionList = {
   total: number;
 };
 
+type SessionTransferResult = {
+  ok: boolean;
+  count?: number;
+  filePath?: string;
+  reason?: "canceled" | "invalid-format" | "read-failed" | "write-failed";
+};
+
 export const useSessionRecorder = () => {
   const api = window.electronAPI?.sessions;
 
@@ -57,11 +64,24 @@ export const useSessionHistory = (page: number, pageSize: number) => {
     void refresh();
   }, [refresh]);
 
+  const exportSessions = useCallback(async () => {
+    if (!api?.export) return null;
+    return api.export() as Promise<SessionTransferResult>;
+  }, [api]);
+
+  const importSessions = useCallback(async () => {
+    if (!api?.import) return null;
+    return api.import() as Promise<SessionTransferResult>;
+  }, [api]);
+
   return {
     data,
     isLoading,
     error,
     refresh,
     isAvailable: Boolean(api?.list),
+    isTransferAvailable: Boolean(api?.export && api?.import),
+    exportSessions,
+    importSessions,
   };
 };
