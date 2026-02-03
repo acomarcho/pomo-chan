@@ -2,7 +2,7 @@ pre-commit:
   parallel: true
   commands:
     prettier:
-      files: git diff --name-only --cached --diff-filter=ACMR
+      files: git diff --name-only --cached --diff-filter=ACMR -- src "*.json"
       run: npx prettier --write --ignore-unknown {files}
 
 pre-push:

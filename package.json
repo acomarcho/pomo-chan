@@ -12,7 +12,7 @@
     "make": "electron-forge make",
     "publish": "electron-forge publish",
     "lint": "eslint .",
-    "format": "prettier --write .",
+    "format": "prettier --write \"src/**/*\" \"*.json\"",
     "typecheck": "tsc --noEmit",
     "prepare": "lefthook install"
   },
