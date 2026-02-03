@@ -1,13 +1,19 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { ConfigWindow } from "@/components/ConfigWindow";
+import { HistoryWindow } from "@/components/HistoryWindow";
 import { TimerWindow } from "@/components/TimerWindow";
 import "./styles/globals.css";
 
 const App = () => {
-  const isConfigWindow =
-    new URLSearchParams(window.location.search).get("window") === "config";
-  return isConfigWindow ? <ConfigWindow /> : <TimerWindow />;
+  const windowType = new URLSearchParams(window.location.search).get("window");
+  if (windowType === "config") {
+    return <ConfigWindow />;
+  }
+  if (windowType === "history") {
+    return <HistoryWindow />;
+  }
+  return <TimerWindow />;
 };
 
 const root = document.getElementById("root");

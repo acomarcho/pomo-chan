@@ -4,6 +4,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import started from "electron-squirrel-startup";
 import Store from "electron-store";
+import { addSession, closeSessionStore, listSessions } from "./session-store";
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -12,6 +13,7 @@ if (started) {
 
 let mainWindow: BrowserWindow | null = null;
 let configWindow: BrowserWindow | null = null;
+let historyWindow: BrowserWindow | null = null;
 
 const execFileAsync = promisify(execFile);
 
@@ -106,14 +108,22 @@ const broadcastConfig = (config: AppConfig) => {
   }
 };
 
-const syncConfigWindowAlwaysOnTop = () => {
-  if (!configWindow || configWindow.isDestroyed()) return;
-  const shouldFloat = mainWindow?.isAlwaysOnTop() ?? false;
+const syncFloatingWindowAlwaysOnTop = (
+  window: BrowserWindow | null,
+  shouldFloat: boolean,
+) => {
+  if (!window || window.isDestroyed()) return;
   if (shouldFloat) {
-    configWindow.setAlwaysOnTop(true, "modal-panel");
+    window.setAlwaysOnTop(true, "modal-panel");
   } else {
-    configWindow.setAlwaysOnTop(false);
+    window.setAlwaysOnTop(false);
   }
+};
+
+const syncAuxWindowsAlwaysOnTop = () => {
+  const shouldFloat = mainWindow?.isAlwaysOnTop() ?? false;
+  syncFloatingWindowAlwaysOnTop(configWindow, shouldFloat);
+  syncFloatingWindowAlwaysOnTop(historyWindow, shouldFloat);
 };
 
 const loadWindow = (window: BrowserWindow, windowName?: string) => {
@@ -160,7 +170,7 @@ const createWindow = () => {
 
 const createConfigWindow = () => {
   if (configWindow && !configWindow.isDestroyed()) {
-    syncConfigWindowAlwaysOnTop();
+    syncAuxWindowsAlwaysOnTop();
     configWindow.focus();
     return;
   }
@@ -180,10 +190,37 @@ const createConfigWindow = () => {
   });
 
   loadWindow(configWindow, "config");
-  syncConfigWindowAlwaysOnTop();
+  syncAuxWindowsAlwaysOnTop();
 
   configWindow.on("closed", () => {
     configWindow = null;
+  });
+};
+
+const createHistoryWindow = () => {
+  if (historyWindow && !historyWindow.isDestroyed()) {
+    syncAuxWindowsAlwaysOnTop();
+    historyWindow.focus();
+    return;
+  }
+
+  historyWindow = new BrowserWindow({
+    width: 520,
+    height: 520,
+    minWidth: 420,
+    minHeight: 360,
+    resizable: true,
+    title: "Session History",
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
+    },
+  });
+
+  loadWindow(historyWindow, "history");
+  syncAuxWindowsAlwaysOnTop();
+
+  historyWindow.on("closed", () => {
+    historyWindow = null;
   });
 };
 
@@ -194,7 +231,7 @@ ipcMain.handle("always-on-top:get", () => {
 ipcMain.handle("always-on-top:set", (_event, value: boolean) => {
   if (!mainWindow) return false;
   mainWindow.setAlwaysOnTop(Boolean(value), "floating");
-  syncConfigWindowAlwaysOnTop();
+  syncAuxWindowsAlwaysOnTop();
   return mainWindow.isAlwaysOnTop();
 });
 
@@ -231,6 +268,25 @@ ipcMain.handle("config:open", () => {
   return true;
 });
 
+ipcMain.handle("history:open", () => {
+  createHistoryWindow();
+  return true;
+});
+
+ipcMain.handle(
+  "session:add",
+  (_event, value: { startedAt: string; endedAt: string }) => {
+    return addSession(value.startedAt, value.endedAt);
+  },
+);
+
+ipcMain.handle(
+  "sessions:list",
+  (_event, value: { page: number; pageSize: number }) => {
+    return listSessions(value.page, value.pageSize);
+  },
+);
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
@@ -243,6 +299,10 @@ app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit();
   }
+});
+
+app.on("before-quit", () => {
+  closeSessionStore();
 });
 
 app.on("activate", () => {

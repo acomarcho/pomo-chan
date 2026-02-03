@@ -15,6 +15,17 @@ type AppConfig = {
   ambientVolumes: AmbientVolumes;
 };
 
+type SessionEntry = {
+  id: number;
+  startedAt: string;
+  endedAt: string;
+};
+
+type SessionList = {
+  items: SessionEntry[];
+  total: number;
+};
+
 const alwaysOnTop = {
   get: () => ipcRenderer.invoke("always-on-top:get"),
   set: (value: boolean) => ipcRenderer.invoke("always-on-top:set", value),
@@ -39,8 +50,21 @@ const config = {
   openWindow: () => ipcRenderer.invoke("config:open"),
 };
 
+const history = {
+  openWindow: () => ipcRenderer.invoke("history:open"),
+};
+
+const sessions = {
+  add: (value: { startedAt: string; endedAt: string }) =>
+    ipcRenderer.invoke("session:add", value) as Promise<number>,
+  list: (value: { page: number; pageSize: number }) =>
+    ipcRenderer.invoke("sessions:list", value) as Promise<SessionList>,
+};
+
 contextBridge.exposeInMainWorld("electronAPI", {
   alwaysOnTop,
   activeApp,
   config,
+  history,
+  sessions,
 });

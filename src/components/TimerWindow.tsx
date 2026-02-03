@@ -11,15 +11,17 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
-import { Settings2 } from "lucide-react";
+import { History, Settings2 } from "lucide-react";
 import { MODES, formatTime } from "@/lib/pomodoro";
 import {
   useActiveAppName,
   useAlwaysOnTop,
   useAppConfig,
   useConfigWindowOpener,
+  useHistoryWindowOpener,
 } from "@/lib/hooks/app-hooks";
 import { usePomodoroTimer } from "@/lib/hooks/timer-hooks";
+import { useSessionRecorder } from "@/lib/hooks/session-hooks";
 
 (window as typeof window & { PIXI?: typeof PIXI }).PIXI = PIXI;
 
@@ -359,6 +361,9 @@ export const TimerWindow = () => {
   const { config } = useAppConfig();
   const { openConfigWindow, isAvailable: isConfigAvailable } =
     useConfigWindowOpener();
+  const { openHistoryWindow, isAvailable: isHistoryAvailable } =
+    useHistoryWindowOpener();
+  const { addSession } = useSessionRecorder();
   const {
     value: isAlwaysOnTop,
     setValue: setAlwaysOnTop,
@@ -373,6 +378,12 @@ export const TimerWindow = () => {
   const handleVoiceAudioPlay = useCallback((audio: HTMLAudioElement) => {
     setVoiceAudioSignal({ audio, token: Date.now() });
   }, []);
+  const handleFocusComplete = useCallback(
+    (session: { startedAt: string; endedAt: string }) => {
+      void addSession(session);
+    },
+    [addSession],
+  );
   const {
     mode,
     remaining,
@@ -384,7 +395,10 @@ export const TimerWindow = () => {
     requestModeSwitch,
     confirmModeSwitch,
     cancelModeSwitch,
-  } = usePomodoroTimer(config, { onVoiceAudioPlay: handleVoiceAudioPlay });
+  } = usePomodoroTimer(config, {
+    onVoiceAudioPlay: handleVoiceAudioPlay,
+    onFocusComplete: handleFocusComplete,
+  });
 
   const formattedTime = formatTime(remaining);
   const showResume = !isRunning && remaining !== total;
@@ -398,6 +412,16 @@ export const TimerWindow = () => {
           variant="ghost"
           size="icon-sm"
           className="rounded-full bg-white/90 text-gray-600 shadow-sm backdrop-blur"
+          onClick={openHistoryWindow}
+          disabled={!isHistoryAvailable}
+          aria-label="Open session history"
+        >
+          <History />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="rounded-full bg-white/90 text-gray-600 shadow-sm backdrop-blur"
           onClick={openConfigWindow}
           disabled={!isConfigAvailable}
           aria-label="Open settings"
@@ -406,14 +430,14 @@ export const TimerWindow = () => {
         </Button>
         <div className="flex items-center gap-2 rounded-full bg-white/90 px-3 py-1.5 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-gray-600 shadow-sm backdrop-blur">
           <span>Always on top</span>
-          <Switch
-            checked={isAlwaysOnTop}
-            aria-label="Toggle always on top"
-            disabled={!isAlwaysOnTopAvailable}
-            onCheckedChange={setAlwaysOnTop}
-          />
+            <Switch
+              checked={isAlwaysOnTop}
+              aria-label="Toggle always on top"
+              disabled={!isAlwaysOnTopAvailable}
+              onCheckedChange={setAlwaysOnTop}
+            />
+          </div>
         </div>
-      </div>
 
       <section className="flex items-center justify-center pb-3">
         <Live2DStage
