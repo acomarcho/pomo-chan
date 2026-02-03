@@ -10,6 +10,16 @@ import { FuseV1Options, FuseVersion } from '@electron/fuses';
 const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
+    ignore: (file) => {
+      if (!file) return false;
+      if (file.startsWith('/.vite')) return false;
+      const allowed = [
+        '/node_modules/better-sqlite3',
+        '/node_modules/bindings',
+        '/node_modules/file-uri-to-path',
+      ];
+      return !allowed.some((prefix) => file.startsWith(prefix));
+    },
   },
   rebuildConfig: {},
   makers: [
