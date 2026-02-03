@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { MODES, type Mode } from "@/lib/pomodoro";
+import { getModeSeconds, type Mode } from "@/lib/pomodoro";
 import type { AppConfig } from "@/lib/hooks/app-hooks";
 import {
   AMBIENT_SOUNDS,
@@ -68,7 +68,9 @@ export const usePomodoroTimer = (
   options: PomodoroTimerOptions = {},
 ) => {
   const [mode, setMode] = useState<Mode>("focus");
-  const [remaining, setRemaining] = useState(MODES.focus.seconds);
+  const [remaining, setRemaining] = useState(() =>
+    getModeSeconds("focus", config.focusMinutes, config.breakMinutes),
+  );
   const [isRunning, setIsRunning] = useState(false);
   const [pendingMode, setPendingMode] = useState<Mode | null>(null);
 
@@ -84,6 +86,10 @@ export const usePomodoroTimer = (
   const isRunningRef = useRef(isRunning);
   const nextTickIsTickRef = useRef(true);
   const focusStartedAtRef = useRef<Date | null>(null);
+  const modeSecondsRef = useRef({
+    focus: getModeSeconds("focus", config.focusMinutes, config.breakMinutes),
+    break: getModeSeconds("break", config.focusMinutes, config.breakMinutes),
+  });
 
   useEffect(() => {
     audioMapRef.current = buildAudioMap(config.audioLanguage);
@@ -132,6 +138,31 @@ export const usePomodoroTimer = (
   useEffect(() => {
     onFocusCompleteRef.current = options.onFocusComplete;
   }, [options.onFocusComplete]);
+
+  const getSecondsForMode = useCallback(
+    (nextMode: Mode) =>
+      getModeSeconds(nextMode, config.focusMinutes, config.breakMinutes),
+    [config.breakMinutes, config.focusMinutes],
+  );
+
+  useEffect(() => {
+    const next = {
+      focus: getSecondsForMode("focus"),
+      break: getSecondsForMode("break"),
+    };
+    const prev = modeSecondsRef.current;
+    modeSecondsRef.current = next;
+
+    if (isRunning) return;
+
+    setRemaining((prevRemaining) => {
+      const prevTotal = prev[mode];
+      const nextTotal = next[mode];
+      if (prevRemaining === prevTotal) return nextTotal;
+      if (prevRemaining > nextTotal) return nextTotal;
+      return prevRemaining;
+    });
+  }, [getSecondsForMode, isRunning, mode]);
 
   const playSound = useCallback((audioMode: Mode, event: AudioEvent) => {
     const key = `${audioMode}_${event}` as AudioKey;
@@ -200,14 +231,14 @@ export const usePomodoroTimer = (
           const nextMode: Mode = mode === "focus" ? "break" : "focus";
           setIsRunning(false);
           setMode(nextMode);
-          return MODES[nextMode].seconds;
+          return getSecondsForMode(nextMode);
         }
         return prev - 1;
       });
     }, 1000);
 
     return () => window.clearInterval(interval);
-  }, [config.playTick, isRunning, mode, playSound]);
+  }, [config.playTick, getSecondsForMode, isRunning, mode, playSound]);
 
   useEffect(() => {
     isRunningRef.current = isRunning;
@@ -220,9 +251,9 @@ export const usePomodoroTimer = (
   const applyModeSwitch = useCallback((nextMode: Mode) => {
     setIsRunning(false);
     setMode(nextMode);
-    setRemaining(MODES[nextMode].seconds);
+    setRemaining(getSecondsForMode(nextMode));
     focusStartedAtRef.current = null;
-  }, []);
+  }, [getSecondsForMode]);
 
   const toggleRunning = useCallback(() => {
     setIsRunning((prev) => {
@@ -231,7 +262,7 @@ export const usePomodoroTimer = (
         playSound(mode, "start");
         if (
           mode === "focus" &&
-          remaining === MODES.focus.seconds &&
+          remaining === getSecondsForMode("focus") &&
           !focusStartedAtRef.current
         ) {
           focusStartedAtRef.current = new Date();
@@ -239,17 +270,17 @@ export const usePomodoroTimer = (
       }
       return next;
     });
-  }, [mode, playSound, remaining]);
+  }, [getSecondsForMode, mode, playSound, remaining]);
 
   const requestModeSwitch = useCallback(() => {
     const nextMode: Mode = mode === "focus" ? "break" : "focus";
-    const total = MODES[mode].seconds;
+    const total = getSecondsForMode(mode);
     if (isRunning || remaining !== total) {
       setPendingMode(nextMode);
       return;
     }
     applyModeSwitch(nextMode);
-  }, [applyModeSwitch, isRunning, mode, remaining]);
+  }, [applyModeSwitch, getSecondsForMode, isRunning, mode, remaining]);
 
   const confirmModeSwitch = useCallback(() => {
     if (!pendingMode) return;
@@ -265,7 +296,7 @@ export const usePomodoroTimer = (
     mode,
     remaining,
     isRunning,
-    total: MODES[mode].seconds,
+    total: getSecondsForMode(mode),
     pendingMode,
     isConfirmOpen: Boolean(pendingMode),
     toggleRunning,

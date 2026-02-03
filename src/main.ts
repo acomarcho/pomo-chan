@@ -5,6 +5,11 @@ import { promisify } from "node:util";
 import started from "electron-squirrel-startup";
 import Store from "electron-store";
 import { addSession, closeSessionStore, listSessions } from "./session-store";
+import {
+  DEFAULT_BREAK_MINUTES,
+  DEFAULT_FOCUS_MINUTES,
+  clampTimerMinutes,
+} from "./lib/pomodoro";
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -34,6 +39,8 @@ type AppConfig = {
   playTick: boolean;
   audioLanguage: AudioLanguage;
   ambientVolumes: AmbientVolumes;
+  focusMinutes: number;
+  breakMinutes: number;
 };
 
 const configStore = new Store<AppConfig>({
@@ -45,6 +52,8 @@ const configStore = new Store<AppConfig>({
       rain: 0,
       forest: 0,
     },
+    focusMinutes: DEFAULT_FOCUS_MINUTES,
+    breakMinutes: DEFAULT_BREAK_MINUTES,
   },
 });
 
@@ -97,6 +106,8 @@ const getConfig = (): AppConfig => {
     playTick: configStore.get("playTick"),
     audioLanguage: configStore.get("audioLanguage"),
     ambientVolumes: configStore.get("ambientVolumes"),
+    focusMinutes: configStore.get("focusMinutes"),
+    breakMinutes: configStore.get("breakMinutes"),
   };
 };
 
@@ -250,9 +261,19 @@ ipcMain.handle("config:get", () => {
 
 ipcMain.handle("config:set", (_event, value: Partial<AppConfig>) => {
   const current = getConfig();
+  const nextFocusMinutes =
+    value.focusMinutes === undefined
+      ? current.focusMinutes
+      : clampTimerMinutes(value.focusMinutes);
+  const nextBreakMinutes =
+    value.breakMinutes === undefined
+      ? current.breakMinutes
+      : clampTimerMinutes(value.breakMinutes);
   const nextConfig = {
     ...current,
     ...value,
+    focusMinutes: nextFocusMinutes,
+    breakMinutes: nextBreakMinutes,
     ambientVolumes: {
       ...current.ambientVolumes,
       ...(value.ambientVolumes ?? {}),

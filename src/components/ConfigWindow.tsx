@@ -1,12 +1,14 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { useAppConfig } from "@/lib/hooks/app-hooks";
+import { useAppConfig, type AppConfig } from "@/lib/hooks/app-hooks";
 import {
   AMBIENT_SOUNDS,
   AMBIENT_SOUND_LABELS,
   type AmbientSound,
 } from "@/lib/ambient";
+import { MAX_TIMER_MINUTES, MIN_TIMER_MINUTES } from "@/lib/pomodoro";
 
 export const ConfigWindow = () => {
   const { config, updateConfig } = useAppConfig();
@@ -21,6 +23,16 @@ export const ConfigWindow = () => {
       },
     });
   };
+
+  const handleMinutesChange =
+    (key: "focusMinutes" | "breakMinutes") =>
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const raw = event.target.value;
+      if (!raw) return;
+      const value = Number(raw);
+      if (Number.isNaN(value)) return;
+      updateConfig({ [key]: value } as Partial<AppConfig>);
+    };
 
   return (
     <div className="min-h-screen bg-white px-4 py-5 text-gray-900">
@@ -78,6 +90,46 @@ export const ConfigWindow = () => {
               >
                 Japanese
               </Button>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="space-y-3">
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900">
+                Session lengths
+              </h2>
+              <p className="text-xs text-gray-500">
+                Adjust focus and break minutes ({MIN_TIMER_MINUTES}-
+                {MAX_TIMER_MINUTES}).
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="space-y-1.5 text-xs font-semibold text-gray-500">
+                <span className="block text-gray-600">Focus</span>
+                <Input
+                  type="number"
+                  min={MIN_TIMER_MINUTES}
+                  max={MAX_TIMER_MINUTES}
+                  step={1}
+                  value={config.focusMinutes}
+                  onChange={handleMinutesChange("focusMinutes")}
+                  aria-label="Focus minutes"
+                />
+              </label>
+              <label className="space-y-1.5 text-xs font-semibold text-gray-500">
+                <span className="block text-gray-600">Break</span>
+                <Input
+                  type="number"
+                  min={MIN_TIMER_MINUTES}
+                  max={MAX_TIMER_MINUTES}
+                  step={1}
+                  value={config.breakMinutes}
+                  onChange={handleMinutesChange("breakMinutes")}
+                  aria-label="Break minutes"
+                />
+              </label>
             </div>
           </div>
         </div>

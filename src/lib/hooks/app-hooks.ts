@@ -1,10 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
 import { DEFAULT_AMBIENT_VOLUMES, type AmbientSound } from "@/lib/ambient";
+import {
+  DEFAULT_BREAK_MINUTES,
+  DEFAULT_FOCUS_MINUTES,
+  clampTimerMinutes,
+} from "@/lib/pomodoro";
 
 export type AppConfig = {
   playTick: boolean;
   audioLanguage: "en" | "jp";
   ambientVolumes: Record<AmbientSound, number>;
+  focusMinutes: number;
+  breakMinutes: number;
 };
 
 type AlwaysOnTopAPI = {
@@ -60,6 +67,8 @@ const DEFAULT_CONFIG: AppConfig = {
   playTick: false,
   audioLanguage: "jp",
   ambientVolumes: { ...DEFAULT_AMBIENT_VOLUMES },
+  focusMinutes: DEFAULT_FOCUS_MINUTES,
+  breakMinutes: DEFAULT_BREAK_MINUTES,
 };
 
 const mergeAmbientVolumes = (
@@ -67,6 +76,16 @@ const mergeAmbientVolumes = (
 ) => ({
   ...DEFAULT_AMBIENT_VOLUMES,
   ...(volumes ?? {}),
+});
+
+const normalizeConfig = (value?: Partial<AppConfig>): AppConfig => ({
+  ...DEFAULT_CONFIG,
+  ...value,
+  focusMinutes: clampTimerMinutes(
+    value?.focusMinutes ?? DEFAULT_FOCUS_MINUTES,
+  ),
+  breakMinutes: clampTimerMinutes(value?.breakMinutes ?? DEFAULT_BREAK_MINUTES),
+  ambientVolumes: mergeAmbientVolumes(value?.ambientVolumes),
 });
 
 export const useAppConfig = () => {
@@ -81,11 +100,7 @@ export const useAppConfig = () => {
       .get()
       .then((stored) => {
         if (!isActive) return;
-        setConfig({
-          ...DEFAULT_CONFIG,
-          ...stored,
-          ambientVolumes: mergeAmbientVolumes(stored?.ambientVolumes),
-        });
+        setConfig(normalizeConfig(stored));
       })
       .catch((error) => {
         console.error("Failed to load config", error);
@@ -93,11 +108,7 @@ export const useAppConfig = () => {
 
     const unsubscribe = api.onChange?.((value) => {
       if (!isActive) return;
-      setConfig({
-        ...DEFAULT_CONFIG,
-        ...value,
-        ambientVolumes: mergeAmbientVolumes(value?.ambientVolumes),
-      });
+      setConfig(normalizeConfig(value));
     });
 
     return () => {
@@ -108,14 +119,21 @@ export const useAppConfig = () => {
 
   const updateConfig = useCallback(
     (value: Partial<AppConfig>) => {
+      const sanitized: Partial<AppConfig> = { ...value };
+      if (value.focusMinutes !== undefined) {
+        sanitized.focusMinutes = clampTimerMinutes(value.focusMinutes);
+      }
+      if (value.breakMinutes !== undefined) {
+        sanitized.breakMinutes = clampTimerMinutes(value.breakMinutes);
+      }
       setConfig((prev) => {
-        const nextAmbient = value.ambientVolumes
-          ? { ...prev.ambientVolumes, ...value.ambientVolumes }
+        const nextAmbient = sanitized.ambientVolumes
+          ? { ...prev.ambientVolumes, ...sanitized.ambientVolumes }
           : prev.ambientVolumes;
-        return { ...prev, ...value, ambientVolumes: nextAmbient };
+        return { ...prev, ...sanitized, ambientVolumes: nextAmbient };
       });
       if (!api) return;
-      api.set(value).catch((error) => {
+      api.set(sanitized).catch((error) => {
         console.error("Failed to update config", error);
       });
     },

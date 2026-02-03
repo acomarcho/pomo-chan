@@ -13,6 +13,8 @@ type AppConfig = {
   playTick: boolean;
   audioLanguage: AudioLanguage;
   ambientVolumes: AmbientVolumes;
+  focusMinutes: number;
+  breakMinutes: number;
 };
 
 type SessionEntry = {
