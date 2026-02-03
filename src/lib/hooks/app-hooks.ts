@@ -81,9 +81,7 @@ const mergeAmbientVolumes = (
 const normalizeConfig = (value?: Partial<AppConfig>): AppConfig => ({
   ...DEFAULT_CONFIG,
   ...value,
-  focusMinutes: clampTimerMinutes(
-    value?.focusMinutes ?? DEFAULT_FOCUS_MINUTES,
-  ),
+  focusMinutes: clampTimerMinutes(value?.focusMinutes ?? DEFAULT_FOCUS_MINUTES),
   breakMinutes: clampTimerMinutes(value?.breakMinutes ?? DEFAULT_BREAK_MINUTES),
   ambientVolumes: mergeAmbientVolumes(value?.ambientVolumes),
 });

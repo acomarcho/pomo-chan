@@ -1,15 +1,15 @@
 {
-	"Type": "Live2D Pose",
-	"Groups": [
-		[
-			{
-				"Id": "PartArmA",
-				"Link": []
-			},
-			{
-				"Id": "PartArmB",
-				"Link": []
-			}
-		]
-	]
+  "Type": "Live2D Pose",
+  "Groups": [
+    [
+      {
+        "Id": "PartArmA",
+        "Link": []
+      },
+      {
+        "Id": "PartArmB",
+        "Link": []
+      }
+    ]
+  ]
 }

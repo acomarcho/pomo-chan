@@ -1,0 +1,11 @@
+pre-commit:
+  parallel: true
+  commands:
+    prettier:
+      files: git diff --name-only --cached --diff-filter=ACMR
+      run: npx prettier --write --ignore-unknown {files}
+
+pre-push:
+  commands:
+    typecheck:
+      run: npm run typecheck
