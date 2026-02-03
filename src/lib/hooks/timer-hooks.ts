@@ -91,12 +91,6 @@ export const usePomodoroTimer = (
     break: getModeSeconds("break", config.focusMinutes, config.breakMinutes),
   });
 
-  // Sync duration changes while idle and avoid surprising jumps.
-  // Sample cases:
-  // - Focus is 25:00 and idle at 25:00, user sets focus to 30: remaining becomes 30:00.
-  // - Focus is 25:00 and idle at 12:34, user sets focus to 30: remaining stays 12:34.
-  // - Focus is 25:00 and idle at 20:00, user sets focus to 15: remaining clamps to 15:00.
-  // - Break duration changes while in focus: only the stored totals update, remaining stays.
   useEffect(() => {
     audioMapRef.current = buildAudioMap(config.audioLanguage);
     reminderAudioRef.current = createReminderAudio(config.audioLanguage);
@@ -151,6 +145,13 @@ export const usePomodoroTimer = (
     [config.breakMinutes, config.focusMinutes],
   );
 
+  // Sync duration changes while idle and avoid surprising jumps.
+  // Sample cases:
+  // - Focus is 25:00 and idle at 25:00, user sets focus to 30: remaining becomes 30:00.
+  // - Focus is 25:00 and idle at 12:34, user sets focus to 30: remaining stays 12:34.
+  // - Focus is 25:00 and idle at 20:00, user sets focus to 15: remaining clamps to 15:00.
+  // - While on focus, changing the break length does not change the countdown;
+  //   it only affects the next break timer.
   useEffect(() => {
     const next = {
       focus: getSecondsForMode("focus"),
