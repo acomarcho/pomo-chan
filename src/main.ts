@@ -337,8 +337,19 @@ ipcMain.handle(
   },
 );
 
-const normalizeSessionArray = (entries: unknown[]) =>
-  entries
+const extractSessionRecords = (
+  payload: unknown,
+): { records: SessionRecord[]; recognized: boolean; sourceCount: number } => {
+  if (!payload || typeof payload !== "object") {
+    return { records: [], recognized: false, sourceCount: 0 };
+  }
+
+  const root = payload as { sessions?: unknown };
+  if (!Array.isArray(root.sessions)) {
+    return { records: [], recognized: false, sourceCount: 0 };
+  }
+
+  const records = root.sessions
     .map((entry) => {
       if (!entry || typeof entry !== "object") return null;
       const candidate = entry as { startedAt?: unknown; endedAt?: unknown };
@@ -355,34 +366,11 @@ const normalizeSessionArray = (entries: unknown[]) =>
     })
     .filter(Boolean) as SessionRecord[];
 
-const extractSessionRecords = (
-  payload: unknown,
-): { records: SessionRecord[]; recognized: boolean; sourceCount: number } => {
-  if (Array.isArray(payload)) {
-    return {
-      records: normalizeSessionArray(payload),
-      recognized: true,
-      sourceCount: payload.length,
-    };
-  }
-
-  if (payload && typeof payload === "object") {
-    const root = payload as { sessions?: unknown; items?: unknown };
-    const entries = Array.isArray(root.sessions)
-      ? root.sessions
-      : Array.isArray(root.items)
-        ? root.items
-        : null;
-    if (entries) {
-      return {
-        records: normalizeSessionArray(entries),
-        recognized: true,
-        sourceCount: entries.length,
-      };
-    }
-  }
-
-  return { records: [], recognized: false, sourceCount: 0 };
+  return {
+    records,
+    recognized: true,
+    sourceCount: root.sessions.length,
+  };
 };
 
 ipcMain.handle("sessions:export", async () => {
