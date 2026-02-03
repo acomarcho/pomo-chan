@@ -129,6 +129,24 @@ export const HistoryWindow = () => {
         <p className="text-sm text-gray-500">
           Only completed focus sessions are saved.
         </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleExport}
+            disabled={!canTransfer}
+          >
+            Export
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleImport}
+            disabled={!canTransfer}
+          >
+            Import
+          </Button>
+        </div>
       </header>
 
       <section className="space-y-3">
@@ -176,22 +194,6 @@ export const HistoryWindow = () => {
               disabled={isLoading || !isAvailable}
             >
               Refresh
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleExport}
-              disabled={!canTransfer}
-            >
-              Export
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleImport}
-              disabled={!canTransfer}
-            >
-              Import
             </Button>
             <Button
               size="sm"

@@ -241,12 +241,12 @@ const createHistoryWindow = () => {
     return;
   }
 
-  const size = { width: 520, height: 520 };
+  const size = { width: 600, height: 520 };
   const position = getOffsetPositionFromMain(size);
   historyWindow = new BrowserWindow({
     width: size.width,
     height: size.height,
-    minWidth: 420,
+    minWidth: 500,
     minHeight: 360,
     ...(position ?? {}),
     resizable: true,
