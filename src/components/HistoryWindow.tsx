@@ -20,10 +20,19 @@ const formatDurationMinutes = (startedAt: string, endedAt: string) => {
 
 export const HistoryWindow = () => {
   const [page, setPage] = useState(1);
-  const { data, isLoading, error, refresh, isAvailable } = useSessionHistory(
-    page,
-    PAGE_SIZE,
-  );
+  const {
+    data,
+    isLoading,
+    error,
+    refresh,
+    isAvailable,
+    isTransferAvailable,
+    exportSessions,
+    importSessions,
+  } = useSessionHistory(page, PAGE_SIZE);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [isTransferring, setIsTransferring] = useState(false);
 
   const totalPages = useMemo(() => {
     if (data.total === 0) return 1;
@@ -39,6 +48,52 @@ export const HistoryWindow = () => {
   const canPrevious = page > 1;
   const canNext = page < totalPages;
   const showEmpty = !isLoading && data.items.length === 0;
+  const canTransfer = isTransferAvailable && !isTransferring;
+
+  const handleExport = async () => {
+    setActionMessage(null);
+    setActionError(null);
+    setIsTransferring(true);
+    try {
+      const result = await exportSessions();
+      if (!result || !result.ok) {
+        if (result?.reason !== "canceled") {
+          setActionError("Failed to export sessions.");
+        }
+        return;
+      }
+      setActionMessage(`Exported ${result.count ?? 0} sessions.`);
+    } catch {
+      setActionError("Failed to export sessions.");
+    } finally {
+      setIsTransferring(false);
+    }
+  };
+
+  const handleImport = async () => {
+    setActionMessage(null);
+    setActionError(null);
+    setIsTransferring(true);
+    try {
+      const result = await importSessions();
+      if (!result || !result.ok) {
+        if (result?.reason !== "canceled") {
+          setActionError("Failed to import sessions.");
+        }
+        return;
+      }
+      setActionMessage(`Imported ${result.count ?? 0} sessions.`);
+      if (page === 1) {
+        void refresh();
+      } else {
+        setPage(1);
+      }
+    } catch {
+      setActionError("Failed to import sessions.");
+    } finally {
+      setIsTransferring(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-white px-4 py-5 text-gray-900">
@@ -72,6 +127,22 @@ export const HistoryWindow = () => {
             <Button
               size="sm"
               variant="outline"
+              onClick={handleExport}
+              disabled={!canTransfer}
+            >
+              Export
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleImport}
+              disabled={!canTransfer}
+            >
+              Import
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
               onClick={() => setPage((prev) => Math.max(1, prev - 1))}
               disabled={!canPrevious || isLoading}
             >
@@ -89,6 +160,14 @@ export const HistoryWindow = () => {
         </div>
 
         <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+          {actionMessage && (
+            <div className="px-4 py-3 text-sm text-emerald-600">
+              {actionMessage}
+            </div>
+          )}
+          {actionError && (
+            <div className="px-4 py-3 text-sm text-red-500">{actionError}</div>
+          )}
           {error && (
             <div className="px-4 py-3 text-sm text-red-500">{error}</div>
           )}

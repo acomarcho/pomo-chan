@@ -42,9 +42,18 @@ type SessionList = {
   total: number;
 };
 
+type SessionTransferResult = {
+  ok: boolean;
+  count?: number;
+  filePath?: string;
+  reason?: "canceled" | "invalid-format" | "read-failed" | "write-failed";
+};
+
 type SessionAPI = {
   add?: (value: { startedAt: string; endedAt: string }) => Promise<number>;
   list?: (value: { page: number; pageSize: number }) => Promise<SessionList>;
+  export?: () => Promise<SessionTransferResult>;
+  import?: () => Promise<SessionTransferResult>;
 };
 
 type HistoryAPI = {
