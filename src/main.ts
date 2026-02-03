@@ -375,9 +375,19 @@ const extractSessionRecords = (
 
 ipcMain.handle("sessions:export", async () => {
   const parent = getDialogParent();
+  const now = new Date();
+  const padded = (value: number) => String(value).padStart(2, "0");
+  const timestamp = `${now.getFullYear()}${padded(now.getMonth() + 1)}${padded(
+    now.getDate(),
+  )}-${padded(now.getHours())}${padded(now.getMinutes())}${padded(
+    now.getSeconds(),
+  )}`;
   const { canceled, filePath } = await dialog.showSaveDialog(parent, {
     title: "Export sessions",
-    defaultPath: path.join(app.getPath("downloads"), "pomo-chan-sessions.json"),
+    defaultPath: path.join(
+      app.getPath("downloads"),
+      `pomo-chan-sessions-${timestamp}.json`,
+    ),
     filters: [{ name: "JSON", extensions: ["json"] }],
   });
   if (canceled || !filePath) {
