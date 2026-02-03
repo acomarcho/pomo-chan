@@ -71,14 +71,6 @@ export const listSessions = (page: number, pageSize: number): SessionList => {
   return { items, total: Number(totalRow.count) };
 };
 
-export const countSessions = () => {
-  const database = ensureDb();
-  const totalRow = database
-    .prepare("SELECT COUNT(*) AS count FROM sessions")
-    .get() as { count: number };
-  return Number(totalRow.count);
-};
-
 export const listAllSessions = (): SessionRecord[] => {
   const database = ensureDb();
   return database

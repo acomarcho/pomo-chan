@@ -1,5 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useSessionHistory } from "@/lib/hooks/session-hooks";
 
 const PAGE_SIZE = 10;
@@ -33,6 +41,7 @@ export const HistoryWindow = () => {
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isTransferring, setIsTransferring] = useState(false);
+  const [showImportConfirm, setShowImportConfirm] = useState(false);
 
   const totalPages = useMemo(() => {
     if (data.total === 0) return 1;
@@ -70,7 +79,7 @@ export const HistoryWindow = () => {
     }
   };
 
-  const handleImport = async () => {
+  const runImport = async () => {
     setActionMessage(null);
     setActionError(null);
     setIsTransferring(true);
@@ -95,6 +104,21 @@ export const HistoryWindow = () => {
     }
   };
 
+  const handleImport = () => {
+    setActionMessage(null);
+    setActionError(null);
+    if (data.total > 0) {
+      setShowImportConfirm(true);
+      return;
+    }
+    void runImport();
+  };
+
+  const handleConfirmImport = () => {
+    setShowImportConfirm(false);
+    void runImport();
+  };
+
   return (
     <div className="min-h-screen bg-white px-4 py-5 text-gray-900">
       <header className="space-y-2 pb-4">
@@ -108,6 +132,38 @@ export const HistoryWindow = () => {
       </header>
 
       <section className="space-y-3">
+        <Dialog
+          open={showImportConfirm}
+          onOpenChange={setShowImportConfirm}
+        >
+          <DialogContent className="text-left">
+            <DialogHeader>
+              <DialogTitle>Replace session history?</DialogTitle>
+              <DialogDescription>
+                Importing will remove all existing sessions from this device.
+                This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                type="button"
+                onClick={() => setShowImportConfirm(false)}
+                disabled={isTransferring}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                type="button"
+                onClick={handleConfirmImport}
+                disabled={isTransferring}
+              >
+                Replace sessions
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">
             Total {data.total}
