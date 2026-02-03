@@ -60,6 +60,7 @@ const clampAmbientVolume = (value: number) =>
 
 type PomodoroTimerOptions = {
   onVoiceAudioPlay?: (audio: HTMLAudioElement) => void;
+  onFocusComplete?: (value: { startedAt: string; endedAt: string }) => void;
 };
 
 export const usePomodoroTimer = (
@@ -82,6 +83,7 @@ export const usePomodoroTimer = (
   const reminderTimeoutRef = useRef<number | null>(null);
   const isRunningRef = useRef(isRunning);
   const nextTickIsTickRef = useRef(true);
+  const focusStartedAtRef = useRef<Date | null>(null);
 
   useEffect(() => {
     audioMapRef.current = buildAudioMap(config.audioLanguage);
@@ -122,6 +124,14 @@ export const usePomodoroTimer = (
   useEffect(() => {
     onVoiceAudioPlayRef.current = options.onVoiceAudioPlay;
   }, [options.onVoiceAudioPlay]);
+
+  const onFocusCompleteRef = useRef<PomodoroTimerOptions["onFocusComplete"]>(
+    options.onFocusComplete,
+  );
+
+  useEffect(() => {
+    onFocusCompleteRef.current = options.onFocusComplete;
+  }, [options.onFocusComplete]);
 
   const playSound = useCallback((audioMode: Mode, event: AudioEvent) => {
     const key = `${audioMode}_${event}` as AudioKey;
@@ -177,6 +187,16 @@ export const usePomodoroTimer = (
       setRemaining((prev) => {
         if (prev <= 1) {
           playSound(mode, "end");
+          if (mode === "focus") {
+            const startedAt = focusStartedAtRef.current;
+            if (startedAt) {
+              onFocusCompleteRef.current?.({
+                startedAt: startedAt.toISOString(),
+                endedAt: new Date().toISOString(),
+              });
+            }
+            focusStartedAtRef.current = null;
+          }
           const nextMode: Mode = mode === "focus" ? "break" : "focus";
           setIsRunning(false);
           setMode(nextMode);
@@ -201,6 +221,7 @@ export const usePomodoroTimer = (
     setIsRunning(false);
     setMode(nextMode);
     setRemaining(MODES[nextMode].seconds);
+    focusStartedAtRef.current = null;
   }, []);
 
   const toggleRunning = useCallback(() => {
@@ -208,10 +229,17 @@ export const usePomodoroTimer = (
       const next = !prev;
       if (next) {
         playSound(mode, "start");
+        if (
+          mode === "focus" &&
+          remaining === MODES.focus.seconds &&
+          !focusStartedAtRef.current
+        ) {
+          focusStartedAtRef.current = new Date();
+        }
       }
       return next;
     });
-  }, [mode, playSound]);
+  }, [mode, playSound, remaining]);
 
   const requestModeSwitch = useCallback(() => {
     const nextMode: Mode = mode === "focus" ? "break" : "focus";

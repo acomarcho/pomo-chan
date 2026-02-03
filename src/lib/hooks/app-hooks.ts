@@ -24,12 +24,34 @@ type ConfigAPI = {
   openWindow?: () => Promise<boolean>;
 };
 
+type SessionEntry = {
+  id: number;
+  startedAt: string;
+  endedAt: string;
+};
+
+type SessionList = {
+  items: SessionEntry[];
+  total: number;
+};
+
+type SessionAPI = {
+  add?: (value: { startedAt: string; endedAt: string }) => Promise<number>;
+  list?: (value: { page: number; pageSize: number }) => Promise<SessionList>;
+};
+
+type HistoryAPI = {
+  openWindow?: () => Promise<boolean>;
+};
+
 declare global {
   interface Window {
     electronAPI?: {
       alwaysOnTop?: AlwaysOnTopAPI;
       activeApp?: ActiveAppAPI;
       config?: ConfigAPI;
+      history?: HistoryAPI;
+      sessions?: SessionAPI;
     };
   }
 }
@@ -205,4 +227,20 @@ export const useConfigWindowOpener = () => {
   }, [api]);
 
   return { openConfigWindow, isAvailable };
+};
+
+export const useHistoryWindowOpener = () => {
+  const api = window.electronAPI?.history;
+  const isAvailable = Boolean(api?.openWindow);
+
+  const openHistoryWindow = useCallback(async () => {
+    if (!api?.openWindow) return;
+    try {
+      await api.openWindow();
+    } catch (error) {
+      console.error("Failed to open history window", error);
+    }
+  }, [api]);
+
+  return { openHistoryWindow, isAvailable };
 };
