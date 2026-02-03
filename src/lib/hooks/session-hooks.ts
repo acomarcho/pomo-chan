@@ -46,7 +46,7 @@ export const useSessionHistory = (page: number, pageSize: number) => {
     try {
       const result = await api.list({ page, pageSize });
       setData(result);
-    } catch (err) {
+    } catch {
       setError("Failed to load sessions.");
     } finally {
       setIsLoading(false);

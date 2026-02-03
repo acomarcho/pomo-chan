@@ -78,7 +78,7 @@ const getActiveAppNameFromLsappinfo = async () => {
       asn,
     ]);
     return parseLsappinfoName(info.stdout);
-  } catch (error) {
+  } catch {
     return "";
   }
 };
