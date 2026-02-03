@@ -91,8 +91,12 @@ export const usePomodoroTimer = (
     break: getModeSeconds("break", config.focusMinutes, config.breakMinutes),
   });
 
-  // Keep duration changes in sync when idle: update totals and adjust remaining
-  // only if we're still at the full duration or the new total is shorter.
+  // Sync duration changes while idle and avoid surprising jumps.
+  // Sample cases:
+  // - Focus is 25:00 and idle at 25:00, user sets focus to 30: remaining becomes 30:00.
+  // - Focus is 25:00 and idle at 12:34, user sets focus to 30: remaining stays 12:34.
+  // - Focus is 25:00 and idle at 20:00, user sets focus to 15: remaining clamps to 15:00.
+  // - Break duration changes while in focus: only the stored totals update, remaining stays.
   useEffect(() => {
     audioMapRef.current = buildAudioMap(config.audioLanguage);
     reminderAudioRef.current = createReminderAudio(config.audioLanguage);
