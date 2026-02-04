@@ -10,7 +10,7 @@ const compat = new FlatCompat({
 
 module.exports = [
   {
-    ignores: ["public/**"],
+    ignores: ["public/**", ".vite/**", "dist/**"],
   },
   ...compat.extends(
     "eslint:recommended",

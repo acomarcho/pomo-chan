@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useSessionDetailsWindowOpener } from "@/lib/hooks/app-hooks";
 import { useSessionHistory } from "@/lib/hooks/session-hooks";
 
 const PAGE_SIZE = 10;
@@ -19,7 +20,15 @@ const formatTimestamp = (value: string) => {
   return date.toLocaleString();
 };
 
-const formatDurationMinutes = (startedAt: string, endedAt: string) => {
+const formatDurationMinutes = (
+  startedAt: string,
+  endedAt: string,
+  focusSeconds?: number | null,
+) => {
+  if (typeof focusSeconds === "number" && Number.isFinite(focusSeconds)) {
+    const minutes = Math.round(focusSeconds / 60);
+    return String(Math.max(0, minutes));
+  }
   const start = new Date(startedAt);
   const end = new Date(endedAt);
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return "-";
@@ -39,6 +48,8 @@ export const HistoryWindow = () => {
     exportSessions,
     importSessions,
   } = useSessionHistory(page, PAGE_SIZE);
+  const { openSessionDetailsWindow, isAvailable: isDetailsAvailable } =
+    useSessionDetailsWindowOpener();
   const [isTransferring, setIsTransferring] = useState(false);
   const [showImportConfirm, setShowImportConfirm] = useState(false);
 
@@ -229,6 +240,7 @@ export const HistoryWindow = () => {
                   <th className="px-4 py-3">Duration (min)</th>
                   <th className="px-4 py-3">Started at</th>
                   <th className="px-4 py-3">Ended at</th>
+                  <th className="px-4 py-3">Details</th>
                 </tr>
               </thead>
               <tbody>
@@ -241,6 +253,7 @@ export const HistoryWindow = () => {
                       {formatDurationMinutes(
                         session.startedAt,
                         session.endedAt,
+                        session.focusSeconds,
                       )}
                     </td>
                     <td className="px-4 py-3 text-gray-700">
@@ -248,6 +261,16 @@ export const HistoryWindow = () => {
                     </td>
                     <td className="px-4 py-3 text-gray-700">
                       {formatTimestamp(session.endedAt)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openSessionDetailsWindow(session.id)}
+                        disabled={!session.hasUsage || !isDetailsAvailable}
+                      >
+                        Show details
+                      </Button>
                     </td>
                   </tr>
                 ))}

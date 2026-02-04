@@ -1,28 +1,21 @@
 import { useCallback, useEffect, useState } from "react";
-
-export type SessionEntry = {
-  id: number;
-  startedAt: string;
-  endedAt: string;
-};
-
-type SessionList = {
-  items: SessionEntry[];
-  total: number;
-};
-
-type SessionTransferResult = {
-  ok: boolean;
-  count?: number;
-  filePath?: string;
-  reason?: "canceled" | "invalid-format" | "read-failed" | "write-failed";
-};
+import type {
+  SessionAppUsage,
+  SessionDetail,
+  SessionList,
+  SessionTransferResult,
+} from "@/lib/session-types";
 
 export const useSessionRecorder = () => {
   const api = window.electronAPI?.sessions;
 
   const addSession = useCallback(
-    async (value: { startedAt: string; endedAt: string }) => {
+    async (value: {
+      startedAt: string;
+      endedAt: string;
+      focusSeconds?: number | null;
+      appUsage?: SessionAppUsage[];
+    }) => {
       if (!api?.add) return;
       try {
         await api.add(value);
@@ -83,5 +76,47 @@ export const useSessionHistory = (page: number, pageSize: number) => {
     isTransferAvailable: Boolean(api?.export && api?.import),
     exportSessions,
     importSessions,
+  };
+};
+
+export const useSessionDetail = (sessionId?: number | null) => {
+  const api = window.electronAPI?.sessions;
+  const [data, setData] = useState<SessionDetail | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    if (!api?.detail || !sessionId) {
+      setError(null);
+      setData(null);
+      return;
+    }
+    setIsLoading(true);
+    setError(null);
+    try {
+      const result = await api.detail({ id: sessionId });
+      if (!result) {
+        setError("Session not found.");
+        setData(null);
+        return;
+      }
+      setData(result);
+    } catch {
+      setError("Failed to load session details.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [api, sessionId]);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  return {
+    data,
+    isLoading,
+    error,
+    refresh,
+    isAvailable: Boolean(api?.detail),
   };
 };

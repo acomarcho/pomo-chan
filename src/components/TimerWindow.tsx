@@ -12,8 +12,9 @@ import {
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { History, Settings2 } from "lucide-react";
-import { MODES, formatTime } from "@/lib/pomodoro";
+import { MODES, formatTime, type Mode } from "@/lib/pomodoro";
 import {
+  ACTIVE_APP_POLL_INTERVAL_MS,
   useActiveAppName,
   useAlwaysOnTop,
   useAppConfig,
@@ -22,6 +23,7 @@ import {
 } from "@/lib/hooks/app-hooks";
 import { usePomodoroTimer } from "@/lib/hooks/timer-hooks";
 import { useSessionRecorder } from "@/lib/hooks/session-hooks";
+import type { SessionAppUsage } from "@/lib/session-types";
 
 (window as typeof window & { PIXI?: typeof PIXI }).PIXI = PIXI;
 
@@ -32,6 +34,20 @@ const LIP_SYNC_GAIN = 9;
 const LIP_SYNC_SILENCE_THRESHOLD = 0.002;
 const LIP_SYNC_ATTACK = 0.6;
 const LIP_SYNC_RELEASE = 0.3;
+
+const normalizeAppName = (value: string) => value.trim() || "Unknown";
+
+const calculateFocusSeconds = (segments: SessionAppUsage[]) => {
+  return segments.reduce((total, segment) => {
+    const start = Date.parse(segment.startedAt);
+    const end = Date.parse(segment.endedAt);
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
+      return total;
+    }
+    const seconds = Math.round((end - start) / 1000);
+    return total + Math.max(0, seconds);
+  }, 0);
+};
 
 type VoiceAudioSignal = {
   audio: HTMLAudioElement | null;
@@ -375,19 +391,88 @@ export const TimerWindow = () => {
     isAvailable: isAlwaysOnTopAvailable,
   } = useAlwaysOnTop();
   const { name: activeAppName, isAvailable: isActiveAppAvailable } =
-    useActiveAppName();
+    useActiveAppName(ACTIVE_APP_POLL_INTERVAL_MS);
   const [voiceAudioSignal, setVoiceAudioSignal] = useState<VoiceAudioSignal>({
     audio: null,
     token: 0,
   });
+  const usageSegmentsRef = useRef<SessionAppUsage[]>([]);
+  const activeSegmentRef = useRef<{
+    appName: string;
+    startedAt: string;
+  } | null>(null);
+  const prevRunningRef = useRef(false);
+  const prevModeRef = useRef<Mode>("focus");
+
+  const closeActiveSegment = useCallback((endedAt: Date) => {
+    const active = activeSegmentRef.current;
+    if (!active) return;
+    const endMs = endedAt.getTime();
+    const startMs = Date.parse(active.startedAt);
+    activeSegmentRef.current = null;
+    if (!Number.isFinite(startMs) || endMs <= startMs) {
+      return;
+    }
+    usageSegmentsRef.current.push({
+      appName: active.appName,
+      startedAt: active.startedAt,
+      endedAt: endedAt.toISOString(),
+    });
+  }, []);
+
+  const switchSegment = useCallback(
+    (appName: string, at: Date) => {
+      const active = activeSegmentRef.current;
+      if (active?.appName === appName) return;
+      if (active) {
+        closeActiveSegment(at);
+      }
+      activeSegmentRef.current = {
+        appName,
+        startedAt: at.toISOString(),
+      };
+    },
+    [closeActiveSegment],
+  );
+
+  const discardSegments = useCallback(() => {
+    usageSegmentsRef.current = [];
+    activeSegmentRef.current = null;
+  }, []);
+
+  const finalizeSegments = useCallback(
+    (endedAt: string) => {
+      closeActiveSegment(new Date(endedAt));
+      const segments = usageSegmentsRef.current.slice();
+      discardSegments();
+      return segments;
+    },
+    [closeActiveSegment, discardSegments],
+  );
+
   const handleVoiceAudioPlay = useCallback((audio: HTMLAudioElement) => {
     setVoiceAudioSignal({ audio, token: Date.now() });
   }, []);
   const handleFocusComplete = useCallback(
     (session: { startedAt: string; endedAt: string }) => {
-      void addSession(session);
+      const segments = finalizeSegments(session.endedAt);
+      const derivedFocusSeconds = calculateFocusSeconds(segments);
+      const fallbackFocusSeconds = Math.max(
+        0,
+        Math.round(
+          (Date.parse(session.endedAt) - Date.parse(session.startedAt)) / 1000,
+        ),
+      );
+      const focusSeconds =
+        segments.length > 0 ? derivedFocusSeconds : fallbackFocusSeconds;
+      void addSession({
+        startedAt: session.startedAt,
+        endedAt: session.endedAt,
+        focusSeconds,
+        appUsage: segments,
+      });
     },
-    [addSession],
+    [addSession, finalizeSegments],
   );
   const {
     mode,
@@ -404,6 +489,32 @@ export const TimerWindow = () => {
     onVoiceAudioPlay: handleVoiceAudioPlay,
     onFocusComplete: handleFocusComplete,
   });
+
+  const activeAppLabel = isActiveAppAvailable
+    ? normalizeAppName(activeAppName)
+    : "Unavailable";
+
+  // Track the active app while focus is running and split into segments on change.
+  useEffect(() => {
+    const normalized = normalizeAppName(activeAppLabel);
+    if (mode === "focus" && isRunning) {
+      switchSegment(normalized, new Date());
+    }
+  }, [activeAppLabel, isRunning, mode, switchSegment]);
+
+  // Stop or reset usage segments when focus pauses or switches away.
+  useEffect(() => {
+    const prevRunning = prevRunningRef.current;
+    const prevMode = prevModeRef.current;
+    if (prevMode === "focus" && mode !== "focus") {
+      discardSegments();
+    }
+    if (mode === "focus" && prevRunning && !isRunning) {
+      closeActiveSegment(new Date());
+    }
+    prevRunningRef.current = isRunning;
+    prevModeRef.current = mode;
+  }, [closeActiveSegment, discardSegments, isRunning, mode]);
 
   const formattedTime = formatTime(remaining);
   const showResume = !isRunning && remaining !== total;

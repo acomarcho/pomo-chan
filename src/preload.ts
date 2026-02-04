@@ -1,6 +1,11 @@
 // See the Electron documentation for details on how to use preload scripts:
 // https://www.electronjs.org/docs/latest/tutorial/process-model#preload-scripts
 import { contextBridge, ipcRenderer } from "electron";
+import type {
+  SessionDetail,
+  SessionList,
+  SessionTransferResult,
+} from "./lib/session-types";
 
 type AudioLanguage = "en" | "jp";
 type AmbientVolumes = {
@@ -15,24 +20,6 @@ type AppConfig = {
   ambientVolumes: AmbientVolumes;
   focusMinutes: number;
   breakMinutes: number;
-};
-
-type SessionEntry = {
-  id: number;
-  startedAt: string;
-  endedAt: string;
-};
-
-type SessionList = {
-  items: SessionEntry[];
-  total: number;
-};
-
-type SessionTransferResult = {
-  ok: boolean;
-  count?: number;
-  filePath?: string;
-  reason?: "canceled" | "invalid-format" | "read-failed" | "write-failed";
 };
 
 const alwaysOnTop = {
@@ -64,14 +51,28 @@ const history = {
 };
 
 const sessions = {
-  add: (value: { startedAt: string; endedAt: string }) =>
-    ipcRenderer.invoke("session:add", value) as Promise<number>,
+  add: (value: {
+    startedAt: string;
+    endedAt: string;
+    focusSeconds?: number | null;
+    appUsage?: SessionDetail["appUsage"];
+  }) => ipcRenderer.invoke("session:add", value) as Promise<number>,
   list: (value: { page: number; pageSize: number }) =>
     ipcRenderer.invoke("sessions:list", value) as Promise<SessionList>,
+  detail: (value: { id: number }) =>
+    ipcRenderer.invoke(
+      "sessions:detail",
+      value,
+    ) as Promise<SessionDetail | null>,
   export: () =>
     ipcRenderer.invoke("sessions:export") as Promise<SessionTransferResult>,
   import: () =>
     ipcRenderer.invoke("sessions:import") as Promise<SessionTransferResult>,
+};
+
+const sessionDetails = {
+  openWindow: (sessionId: number) =>
+    ipcRenderer.invoke("session-details:open", sessionId),
 };
 
 contextBridge.exposeInMainWorld("electronAPI", {
@@ -79,5 +80,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
   activeApp,
   config,
   history,
+  sessionDetails,
   sessions,
 });

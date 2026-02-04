@@ -2,25 +2,40 @@ import Database from "better-sqlite3";
 import { app } from "electron";
 import fs from "node:fs";
 import path from "node:path";
-
-export type SessionEntry = {
-  id: number;
-  startedAt: string;
-  endedAt: string;
-};
-
-export type SessionRecord = {
-  startedAt: string;
-  endedAt: string;
-};
-
-export type SessionList = {
-  items: SessionEntry[];
-  total: number;
-};
+import type {
+  SessionAppUsage,
+  SessionDetail,
+  SessionEntry,
+  SessionList,
+  SessionRecord,
+} from "./lib/session-types";
 
 let db: Database.Database | null = null;
 let didApplyFreshStart = false;
+
+const ensureFocusSecondsColumn = (database: Database.Database) => {
+  const columns = database
+    .prepare("PRAGMA table_info(sessions)")
+    .all() as Array<{ name: string }>;
+  const hasFocusSeconds = columns.some(
+    (column) => column.name === "focus_seconds",
+  );
+  if (!hasFocusSeconds) {
+    database.exec("ALTER TABLE sessions ADD COLUMN focus_seconds INTEGER");
+  }
+};
+
+const calculateFocusSeconds = (segments: SessionAppUsage[]) => {
+  return segments.reduce((total, segment) => {
+    const start = Date.parse(segment.startedAt);
+    const end = Date.parse(segment.endedAt);
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
+      return total;
+    }
+    const seconds = Math.round((end - start) / 1000);
+    return total + Math.max(0, seconds);
+  }, 0);
+};
 
 const ensureDb = () => {
   if (db) return db;
@@ -39,19 +54,58 @@ const ensureDb = () => {
     CREATE TABLE IF NOT EXISTS sessions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       started_at TEXT NOT NULL,
-      ended_at TEXT NOT NULL
+      ended_at TEXT NOT NULL,
+      focus_seconds INTEGER
     );
   `);
+  ensureFocusSecondsColumn(db);
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS session_app_usage (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      session_id INTEGER NOT NULL,
+      app_name TEXT NOT NULL,
+      started_at TEXT NOT NULL,
+      ended_at TEXT NOT NULL,
+      FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE
+    );
+  `);
+  db.exec(
+    "CREATE INDEX IF NOT EXISTS session_app_usage_session_id ON session_app_usage(session_id)",
+  );
   return db;
 };
 
-export const addSession = (startedAt: string, endedAt: string) => {
+export const addSession = (record: SessionRecord) => {
   const database = ensureDb();
-  const stmt = database.prepare(
-    "INSERT INTO sessions (started_at, ended_at) VALUES (?, ?)",
+  const focusSeconds =
+    record.focusSeconds ??
+    (record.appUsage ? calculateFocusSeconds(record.appUsage) : null);
+  const insertSession = database.prepare(
+    "INSERT INTO sessions (started_at, ended_at, focus_seconds) VALUES (?, ?, ?)",
   );
-  const info = stmt.run(startedAt, endedAt);
-  return Number(info.lastInsertRowid);
+  const info = insertSession.run(
+    record.startedAt,
+    record.endedAt,
+    focusSeconds,
+  );
+  const sessionId = Number(info.lastInsertRowid);
+  if (record.appUsage && record.appUsage.length > 0) {
+    const insertUsage = database.prepare(
+      "INSERT INTO session_app_usage (session_id, app_name, started_at, ended_at) VALUES (?, ?, ?, ?)",
+    );
+    const insertMany = database.transaction((segments: SessionAppUsage[]) => {
+      for (const segment of segments) {
+        insertUsage.run(
+          sessionId,
+          segment.appName,
+          segment.startedAt,
+          segment.endedAt,
+        );
+      }
+    });
+    insertMany(record.appUsage);
+  }
+  return sessionId;
 };
 
 export const listSessions = (page: number, pageSize: number): SessionList => {
@@ -60,11 +114,39 @@ export const listSessions = (page: number, pageSize: number): SessionList => {
   const safePageSize =
     Number.isFinite(pageSize) && pageSize > 0 ? pageSize : 10;
   const offset = (safePage - 1) * safePageSize;
-  const items = database
+  const rows = database
     .prepare(
-      "SELECT id, started_at AS startedAt, ended_at AS endedAt FROM sessions ORDER BY started_at DESC LIMIT ? OFFSET ?",
+      `
+      SELECT
+        sessions.id AS id,
+        sessions.started_at AS startedAt,
+        sessions.ended_at AS endedAt,
+        sessions.focus_seconds AS focusSeconds,
+        EXISTS (
+          SELECT 1 FROM session_app_usage
+          WHERE session_app_usage.session_id = sessions.id
+          LIMIT 1
+        ) AS hasUsage
+      FROM sessions
+      ORDER BY sessions.started_at DESC
+      LIMIT ? OFFSET ?
+      `,
     )
-    .all(safePageSize, offset) as SessionEntry[];
+    .all(safePageSize, offset) as Array<{
+    id: number;
+    startedAt: string;
+    endedAt: string;
+    focusSeconds: number | null;
+    hasUsage: number;
+  }>;
+  const items = rows.map((row) => ({
+    id: row.id,
+    startedAt: row.startedAt,
+    endedAt: row.endedAt,
+    focusSeconds:
+      typeof row.focusSeconds === "number" ? row.focusSeconds : null,
+    hasUsage: Boolean(row.hasUsage),
+  })) as SessionEntry[];
   const totalRow = database
     .prepare("SELECT COUNT(*) AS count FROM sessions")
     .get() as { count: number };
@@ -73,26 +155,115 @@ export const listSessions = (page: number, pageSize: number): SessionList => {
 
 export const listAllSessions = (): SessionRecord[] => {
   const database = ensureDb();
-  return database
+  const sessions = database
     .prepare(
-      "SELECT started_at AS startedAt, ended_at AS endedAt FROM sessions ORDER BY started_at ASC",
+      "SELECT id, started_at AS startedAt, ended_at AS endedAt, focus_seconds AS focusSeconds FROM sessions ORDER BY started_at ASC",
     )
-    .all() as SessionRecord[];
+    .all() as Array<{
+    id: number;
+    startedAt: string;
+    endedAt: string;
+    focusSeconds: number | null;
+  }>;
+  const usageRows = database
+    .prepare(
+      "SELECT session_id AS sessionId, app_name AS appName, started_at AS startedAt, ended_at AS endedAt FROM session_app_usage ORDER BY started_at ASC",
+    )
+    .all() as Array<{
+    sessionId: number;
+    appName: string;
+    startedAt: string;
+    endedAt: string;
+  }>;
+  const usageBySession = new Map<number, SessionAppUsage[]>();
+  for (const row of usageRows) {
+    const list = usageBySession.get(row.sessionId);
+    const segment = {
+      appName: row.appName,
+      startedAt: row.startedAt,
+      endedAt: row.endedAt,
+    };
+    if (list) {
+      list.push(segment);
+    } else {
+      usageBySession.set(row.sessionId, [segment]);
+    }
+  }
+  return sessions.map((session) => ({
+    startedAt: session.startedAt,
+    endedAt: session.endedAt,
+    focusSeconds: session.focusSeconds ?? null,
+    appUsage: usageBySession.get(session.id) ?? [],
+  }));
 };
 
 export const replaceSessions = (entries: SessionRecord[]) => {
   const database = ensureDb();
-  const insert = database.prepare(
-    "INSERT INTO sessions (started_at, ended_at) VALUES (?, ?)",
+  const insertSession = database.prepare(
+    "INSERT INTO sessions (started_at, ended_at, focus_seconds) VALUES (?, ?, ?)",
+  );
+  const insertUsage = database.prepare(
+    "INSERT INTO session_app_usage (session_id, app_name, started_at, ended_at) VALUES (?, ?, ?, ?)",
   );
   const replace = database.transaction((records: SessionRecord[]) => {
+    database.exec("DELETE FROM session_app_usage");
     database.exec("DELETE FROM sessions");
     database.exec("DELETE FROM sqlite_sequence WHERE name = 'sessions'");
+    database.exec(
+      "DELETE FROM sqlite_sequence WHERE name = 'session_app_usage'",
+    );
     for (const record of records) {
-      insert.run(record.startedAt, record.endedAt);
+      const focusSeconds =
+        record.focusSeconds ??
+        (record.appUsage ? calculateFocusSeconds(record.appUsage) : null);
+      const info = insertSession.run(
+        record.startedAt,
+        record.endedAt,
+        focusSeconds,
+      );
+      const sessionId = Number(info.lastInsertRowid);
+      if (record.appUsage && record.appUsage.length > 0) {
+        for (const segment of record.appUsage) {
+          insertUsage.run(
+            sessionId,
+            segment.appName,
+            segment.startedAt,
+            segment.endedAt,
+          );
+        }
+      }
     }
   });
   replace(entries);
+};
+
+export const getSessionDetail = (sessionId: number): SessionDetail | null => {
+  const database = ensureDb();
+  const session = database
+    .prepare(
+      "SELECT id, started_at AS startedAt, ended_at AS endedAt, focus_seconds AS focusSeconds FROM sessions WHERE id = ?",
+    )
+    .get(sessionId) as
+    | {
+        id: number;
+        startedAt: string;
+        endedAt: string;
+        focusSeconds: number | null;
+      }
+    | undefined;
+  if (!session) return null;
+  const usage = database
+    .prepare(
+      "SELECT app_name AS appName, started_at AS startedAt, ended_at AS endedAt FROM session_app_usage WHERE session_id = ? ORDER BY started_at ASC",
+    )
+    .all(sessionId) as SessionAppUsage[];
+  return {
+    id: session.id,
+    startedAt: session.startedAt,
+    endedAt: session.endedAt,
+    focusSeconds: session.focusSeconds ?? null,
+    appUsage: usage,
+  };
 };
 
 export const closeSessionStore = () => {
