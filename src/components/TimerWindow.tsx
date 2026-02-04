@@ -35,6 +35,20 @@ const LIP_SYNC_SILENCE_THRESHOLD = 0.002;
 const LIP_SYNC_ATTACK = 0.6;
 const LIP_SYNC_RELEASE = 0.3;
 
+const normalizeAppName = (value: string) => value.trim() || "Unknown";
+
+const calculateFocusSeconds = (segments: SessionAppUsage[]) => {
+  return segments.reduce((total, segment) => {
+    const start = Date.parse(segment.startedAt);
+    const end = Date.parse(segment.endedAt);
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
+      return total;
+    }
+    const seconds = Math.round((end - start) / 1000);
+    return total + Math.max(0, seconds);
+  }, 0);
+};
+
 type VoiceAudioSignal = {
   audio: HTMLAudioElement | null;
   token: number;
@@ -390,11 +404,6 @@ export const TimerWindow = () => {
   const prevRunningRef = useRef(false);
   const prevModeRef = useRef<Mode>("focus");
 
-  const normalizeAppName = useCallback(
-    (value: string) => value.trim() || "Unknown",
-    [],
-  );
-
   const closeActiveSegment = useCallback((endedAt: Date) => {
     const active = activeSegmentRef.current;
     if (!active) return;
@@ -441,17 +450,6 @@ export const TimerWindow = () => {
     [closeActiveSegment, discardSegments],
   );
 
-  const calculateFocusSeconds = useCallback((segments: SessionAppUsage[]) => {
-    return segments.reduce((total, segment) => {
-      const start = Date.parse(segment.startedAt);
-      const end = Date.parse(segment.endedAt);
-      if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
-        return total;
-      }
-      const seconds = Math.round((end - start) / 1000);
-      return total + Math.max(0, seconds);
-    }, 0);
-  }, []);
   const handleVoiceAudioPlay = useCallback((audio: HTMLAudioElement) => {
     setVoiceAudioSignal({ audio, token: Date.now() });
   }, []);
@@ -474,7 +472,7 @@ export const TimerWindow = () => {
         appUsage: segments,
       });
     },
-    [addSession, calculateFocusSeconds, finalizeSegments],
+    [addSession, finalizeSegments],
   );
   const {
     mode,
@@ -502,7 +500,7 @@ export const TimerWindow = () => {
     if (mode === "focus" && isRunning) {
       switchSegment(normalized, new Date());
     }
-  }, [activeAppLabel, isRunning, mode, normalizeAppName, switchSegment]);
+  }, [activeAppLabel, isRunning, mode, switchSegment]);
 
   // Stop or reset usage segments when focus pauses or switches away.
   useEffect(() => {
