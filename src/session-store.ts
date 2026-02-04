@@ -141,7 +141,7 @@ export const listSessions = (page: number, pageSize: number): SessionList => {
   const safePageSize =
     Number.isFinite(pageSize) && pageSize > 0 ? pageSize : 10;
   const offset = (safePage - 1) * safePageSize;
-  const items = database
+  const rows = database
     .prepare(
       `
       SELECT
@@ -159,13 +159,21 @@ export const listSessions = (page: number, pageSize: number): SessionList => {
       LIMIT ? OFFSET ?
       `,
     )
-    .all(safePageSize, offset)
-    .map((row) => ({
-      ...row,
-      focusSeconds:
-        typeof row.focusSeconds === "number" ? row.focusSeconds : null,
-      hasUsage: Boolean(row.hasUsage),
-    })) as SessionEntry[];
+    .all(safePageSize, offset) as Array<{
+    id: number;
+    startedAt: string;
+    endedAt: string;
+    focusSeconds: number | null;
+    hasUsage: number;
+  }>;
+  const items = rows.map((row) => ({
+    id: row.id,
+    startedAt: row.startedAt,
+    endedAt: row.endedAt,
+    focusSeconds:
+      typeof row.focusSeconds === "number" ? row.focusSeconds : null,
+    hasUsage: Boolean(row.hasUsage),
+  })) as SessionEntry[];
   const totalRow = database
     .prepare("SELECT COUNT(*) AS count FROM sessions")
     .get() as { count: number };
