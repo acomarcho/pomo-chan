@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -38,8 +39,6 @@ export const HistoryWindow = () => {
     exportSessions,
     importSessions,
   } = useSessionHistory(page, PAGE_SIZE);
-  const [actionMessage, setActionMessage] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
   const [isTransferring, setIsTransferring] = useState(false);
   const [showImportConfirm, setShowImportConfirm] = useState(false);
 
@@ -60,53 +59,47 @@ export const HistoryWindow = () => {
   const canTransfer = isTransferAvailable && !isTransferring;
 
   const handleExport = async () => {
-    setActionMessage(null);
-    setActionError(null);
     setIsTransferring(true);
     try {
       const result = await exportSessions();
       if (!result || !result.ok) {
         if (result?.reason !== "canceled") {
-          setActionError("Failed to export sessions.");
+          toast.error("Failed to export sessions.");
         }
         return;
       }
-      setActionMessage(`Exported ${result.count ?? 0} sessions.`);
+      toast.success(`Exported ${result.count ?? 0} sessions.`);
     } catch {
-      setActionError("Failed to export sessions.");
+      toast.error("Failed to export sessions.");
     } finally {
       setIsTransferring(false);
     }
   };
 
   const runImport = async () => {
-    setActionMessage(null);
-    setActionError(null);
     setIsTransferring(true);
     try {
       const result = await importSessions();
       if (!result || !result.ok) {
         if (result?.reason !== "canceled") {
-          setActionError("Failed to import sessions.");
+          toast.error("Failed to import sessions.");
         }
         return;
       }
-      setActionMessage(`Imported ${result.count ?? 0} sessions.`);
+      toast.success(`Imported ${result.count ?? 0} sessions.`);
       if (page === 1) {
         void refresh();
       } else {
         setPage(1);
       }
     } catch {
-      setActionError("Failed to import sessions.");
+      toast.error("Failed to import sessions.");
     } finally {
       setIsTransferring(false);
     }
   };
 
   const handleImport = () => {
-    setActionMessage(null);
-    setActionError(null);
     if (data.total > 0) {
       setShowImportConfirm(true);
       return;
@@ -215,14 +208,6 @@ export const HistoryWindow = () => {
         </div>
 
         <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-          {actionMessage && (
-            <div className="px-4 py-3 text-sm text-emerald-600">
-              {actionMessage}
-            </div>
-          )}
-          {actionError && (
-            <div className="px-4 py-3 text-sm text-red-500">{actionError}</div>
-          )}
           {error && (
             <div className="px-4 py-3 text-sm text-red-500">{error}</div>
           )}
