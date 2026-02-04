@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { ConfigWindow } from "@/components/ConfigWindow";
 import { HistoryWindow } from "@/components/HistoryWindow";
 import { TimerWindow } from "@/components/TimerWindow";
+import { Toaster } from "@/components/ui/sonner";
 import "./styles/globals.css";
 
 const App = () => {
@@ -21,6 +22,7 @@ if (root) {
   createRoot(root).render(
     <React.StrictMode>
       <App />
+      <Toaster />
     </React.StrictMode>,
   );
 }
