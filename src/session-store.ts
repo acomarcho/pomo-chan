@@ -2,40 +2,13 @@ import Database from "better-sqlite3";
 import { app } from "electron";
 import fs from "node:fs";
 import path from "node:path";
-
-export type SessionEntry = {
-  id: number;
-  startedAt: string;
-  endedAt: string;
-  focusSeconds: number | null;
-  hasUsage: boolean;
-};
-
-export type SessionAppUsage = {
-  appName: string;
-  startedAt: string;
-  endedAt: string;
-};
-
-export type SessionDetail = {
-  id: number;
-  startedAt: string;
-  endedAt: string;
-  focusSeconds: number | null;
-  appUsage: SessionAppUsage[];
-};
-
-export type SessionRecord = {
-  startedAt: string;
-  endedAt: string;
-  focusSeconds?: number | null;
-  appUsage?: SessionAppUsage[];
-};
-
-export type SessionList = {
-  items: SessionEntry[];
-  total: number;
-};
+import type {
+  SessionAppUsage,
+  SessionDetail,
+  SessionEntry,
+  SessionList,
+  SessionRecord,
+} from "./lib/session-types";
 
 let db: Database.Database | null = null;
 let didApplyFreshStart = false;

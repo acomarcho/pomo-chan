@@ -22,10 +22,8 @@ import {
   useHistoryWindowOpener,
 } from "@/lib/hooks/app-hooks";
 import { usePomodoroTimer } from "@/lib/hooks/timer-hooks";
-import {
-  useSessionRecorder,
-  type SessionAppUsage,
-} from "@/lib/hooks/session-hooks";
+import { useSessionRecorder } from "@/lib/hooks/session-hooks";
+import type { SessionAppUsage } from "@/lib/session-types";
 
 (window as typeof window & { PIXI?: typeof PIXI }).PIXI = PIXI;
 
@@ -498,6 +496,7 @@ export const TimerWindow = () => {
     ? normalizeAppName(activeAppName)
     : "Unavailable";
 
+  // Track the active app while focus is running and split into segments on change.
   useEffect(() => {
     const normalized = normalizeAppName(activeAppLabel);
     if (mode === "focus" && isRunning) {
@@ -505,6 +504,7 @@ export const TimerWindow = () => {
     }
   }, [activeAppLabel, isRunning, mode, normalizeAppName, switchSegment]);
 
+  // Stop or reset usage segments when focus pauses or switches away.
   useEffect(() => {
     const prevRunning = prevRunningRef.current;
     const prevMode = prevModeRef.current;

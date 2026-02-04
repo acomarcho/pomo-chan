@@ -1,38 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-
-export type SessionEntry = {
-  id: number;
-  startedAt: string;
-  endedAt: string;
-  focusSeconds?: number | null;
-  hasUsage?: boolean;
-};
-
-export type SessionAppUsage = {
-  appName: string;
-  startedAt: string;
-  endedAt: string;
-};
-
-export type SessionDetail = {
-  id: number;
-  startedAt: string;
-  endedAt: string;
-  focusSeconds?: number | null;
-  appUsage: SessionAppUsage[];
-};
-
-type SessionList = {
-  items: SessionEntry[];
-  total: number;
-};
-
-type SessionTransferResult = {
-  ok: boolean;
-  count?: number;
-  filePath?: string;
-  reason?: "canceled" | "invalid-format" | "read-failed" | "write-failed";
-};
+import type {
+  SessionAppUsage,
+  SessionDetail,
+  SessionList,
+  SessionTransferResult,
+} from "@/lib/session-types";
 
 export const useSessionRecorder = () => {
   const api = window.electronAPI?.sessions;

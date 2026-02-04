@@ -5,6 +5,11 @@ import {
   DEFAULT_FOCUS_MINUTES,
   clampTimerMinutes,
 } from "@/lib/pomodoro";
+import type {
+  SessionDetail,
+  SessionList,
+  SessionTransferResult,
+} from "@/lib/session-types";
 
 export type AppConfig = {
   playTick: boolean;
@@ -31,46 +36,12 @@ type ConfigAPI = {
   openWindow?: () => Promise<boolean>;
 };
 
-type SessionEntry = {
-  id: number;
-  startedAt: string;
-  endedAt: string;
-  focusSeconds?: number | null;
-  hasUsage?: boolean;
-};
-
-type SessionAppUsage = {
-  appName: string;
-  startedAt: string;
-  endedAt: string;
-};
-
-type SessionDetail = {
-  id: number;
-  startedAt: string;
-  endedAt: string;
-  focusSeconds?: number | null;
-  appUsage: SessionAppUsage[];
-};
-
-type SessionList = {
-  items: SessionEntry[];
-  total: number;
-};
-
-type SessionTransferResult = {
-  ok: boolean;
-  count?: number;
-  filePath?: string;
-  reason?: "canceled" | "invalid-format" | "read-failed" | "write-failed";
-};
-
 type SessionAPI = {
   add?: (value: {
     startedAt: string;
     endedAt: string;
     focusSeconds?: number | null;
-    appUsage?: SessionAppUsage[];
+    appUsage?: SessionDetail["appUsage"];
   }) => Promise<number>;
   list?: (value: { page: number; pageSize: number }) => Promise<SessionList>;
   detail?: (value: { id: number }) => Promise<SessionDetail | null>;

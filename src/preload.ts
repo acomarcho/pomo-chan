@@ -1,6 +1,11 @@
 // See the Electron documentation for details on how to use preload scripts:
 // https://www.electronjs.org/docs/latest/tutorial/process-model#preload-scripts
 import { contextBridge, ipcRenderer } from "electron";
+import type {
+  SessionDetail,
+  SessionList,
+  SessionTransferResult,
+} from "./lib/session-types";
 
 type AudioLanguage = "en" | "jp";
 type AmbientVolumes = {
@@ -15,40 +20,6 @@ type AppConfig = {
   ambientVolumes: AmbientVolumes;
   focusMinutes: number;
   breakMinutes: number;
-};
-
-type SessionEntry = {
-  id: number;
-  startedAt: string;
-  endedAt: string;
-  focusSeconds?: number | null;
-  hasUsage?: boolean;
-};
-
-type SessionAppUsage = {
-  appName: string;
-  startedAt: string;
-  endedAt: string;
-};
-
-type SessionDetail = {
-  id: number;
-  startedAt: string;
-  endedAt: string;
-  focusSeconds?: number | null;
-  appUsage: SessionAppUsage[];
-};
-
-type SessionList = {
-  items: SessionEntry[];
-  total: number;
-};
-
-type SessionTransferResult = {
-  ok: boolean;
-  count?: number;
-  filePath?: string;
-  reason?: "canceled" | "invalid-format" | "read-failed" | "write-failed";
 };
 
 const alwaysOnTop = {
@@ -84,7 +55,7 @@ const sessions = {
     startedAt: string;
     endedAt: string;
     focusSeconds?: number | null;
-    appUsage?: SessionAppUsage[];
+    appUsage?: SessionDetail["appUsage"];
   }) => ipcRenderer.invoke("session:add", value) as Promise<number>,
   list: (value: { page: number; pageSize: number }) =>
     ipcRenderer.invoke("sessions:list", value) as Promise<SessionList>,

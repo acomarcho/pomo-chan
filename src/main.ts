@@ -12,9 +12,8 @@ import {
   listAllSessions,
   listSessions,
   replaceSessions,
-  type SessionAppUsage,
-  type SessionRecord,
 } from "./session-store";
+import type { SessionAppUsage, SessionRecord } from "./lib/session-types";
 import {
   DEFAULT_BREAK_MINUTES,
   DEFAULT_FOCUS_MINUTES,
@@ -142,6 +141,7 @@ const syncFloatingWindowAlwaysOnTop = (
   }
 };
 
+// Keep all auxiliary windows in sync with the main always-on-top state.
 const syncAuxWindowsAlwaysOnTop = () => {
   const shouldFloat = mainWindow?.isAlwaysOnTop() ?? false;
   syncFloatingWindowAlwaysOnTop(configWindow, shouldFloat);
