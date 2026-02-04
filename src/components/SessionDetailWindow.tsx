@@ -1,9 +1,7 @@
 import React, { useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  useSessionDetail,
-  type SessionAppUsage,
-} from "@/lib/hooks/session-hooks";
+import { useSessionDetail } from "@/lib/hooks/session-hooks";
+import type { SessionAppUsage } from "@/lib/session-types";
 
 const formatTimestamp = (value: string) => {
   const date = new Date(value);
