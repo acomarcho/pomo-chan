@@ -1,6 +1,5 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
-import { ThemeProvider } from "next-themes";
 import { ConfigWindow } from "@/components/ConfigWindow";
 import { HistoryWindow } from "@/components/HistoryWindow";
 import { TimerWindow } from "@/components/TimerWindow";
@@ -22,10 +21,8 @@ const root = document.getElementById("root");
 if (root) {
   createRoot(root).render(
     <React.StrictMode>
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-        <App />
-        <Toaster />
-      </ThemeProvider>
+      <App />
+      <Toaster />
     </React.StrictMode>,
   );
 }
