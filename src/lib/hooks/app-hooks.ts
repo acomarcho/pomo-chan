@@ -35,6 +35,22 @@ type SessionEntry = {
   id: number;
   startedAt: string;
   endedAt: string;
+  focusSeconds?: number | null;
+  hasUsage?: boolean;
+};
+
+type SessionAppUsage = {
+  appName: string;
+  startedAt: string;
+  endedAt: string;
+};
+
+type SessionDetail = {
+  id: number;
+  startedAt: string;
+  endedAt: string;
+  focusSeconds?: number | null;
+  appUsage: SessionAppUsage[];
 };
 
 type SessionList = {
@@ -50,14 +66,24 @@ type SessionTransferResult = {
 };
 
 type SessionAPI = {
-  add?: (value: { startedAt: string; endedAt: string }) => Promise<number>;
+  add?: (value: {
+    startedAt: string;
+    endedAt: string;
+    focusSeconds?: number | null;
+    appUsage?: SessionAppUsage[];
+  }) => Promise<number>;
   list?: (value: { page: number; pageSize: number }) => Promise<SessionList>;
+  detail?: (value: { id: number }) => Promise<SessionDetail | null>;
   export?: () => Promise<SessionTransferResult>;
   import?: () => Promise<SessionTransferResult>;
 };
 
 type HistoryAPI = {
   openWindow?: () => Promise<boolean>;
+};
+
+type SessionDetailsAPI = {
+  openWindow?: (sessionId: number) => Promise<boolean>;
 };
 
 declare global {
@@ -67,6 +93,7 @@ declare global {
       activeApp?: ActiveAppAPI;
       config?: ConfigAPI;
       history?: HistoryAPI;
+      sessionDetails?: SessionDetailsAPI;
       sessions?: SessionAPI;
     };
   }
@@ -191,7 +218,11 @@ export const useAlwaysOnTop = () => {
   return { value, setValue: setAlwaysOnTop, isAvailable: Boolean(api) };
 };
 
-export const useActiveAppName = (pollInterval = 1000) => {
+export const ACTIVE_APP_POLL_INTERVAL_MS = 1000;
+
+export const useActiveAppName = (
+  pollInterval = ACTIVE_APP_POLL_INTERVAL_MS,
+) => {
   const api = window.electronAPI?.activeApp;
   const [name, setName] = useState("");
 
@@ -268,4 +299,23 @@ export const useHistoryWindowOpener = () => {
   }, [api]);
 
   return { openHistoryWindow, isAvailable };
+};
+
+export const useSessionDetailsWindowOpener = () => {
+  const api = window.electronAPI?.sessionDetails;
+  const isAvailable = Boolean(api?.openWindow);
+
+  const openSessionDetailsWindow = useCallback(
+    async (sessionId: number) => {
+      if (!api?.openWindow) return;
+      try {
+        await api.openWindow(sessionId);
+      } catch (error) {
+        console.error("Failed to open session details window", error);
+      }
+    },
+    [api],
+  );
+
+  return { openSessionDetailsWindow, isAvailable };
 };

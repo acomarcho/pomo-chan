@@ -8,9 +8,11 @@ import Store from "electron-store";
 import {
   addSession,
   closeSessionStore,
+  getSessionDetail,
   listAllSessions,
   listSessions,
   replaceSessions,
+  type SessionAppUsage,
   type SessionRecord,
 } from "./session-store";
 import {
@@ -27,6 +29,7 @@ if (started) {
 let mainWindow: BrowserWindow | null = null;
 let configWindow: BrowserWindow | null = null;
 let historyWindow: BrowserWindow | null = null;
+let sessionDetailsWindow: BrowserWindow | null = null;
 
 const execFileAsync = promisify(execFile);
 
@@ -143,6 +146,7 @@ const syncAuxWindowsAlwaysOnTop = () => {
   const shouldFloat = mainWindow?.isAlwaysOnTop() ?? false;
   syncFloatingWindowAlwaysOnTop(configWindow, shouldFloat);
   syncFloatingWindowAlwaysOnTop(historyWindow, shouldFloat);
+  syncFloatingWindowAlwaysOnTop(sessionDetailsWindow, shouldFloat);
 };
 
 const getOffsetPositionFromMain = (size: { width: number; height: number }) => {
@@ -160,17 +164,26 @@ const getOffsetPositionFromMain = (size: { width: number; height: number }) => {
 const getDialogParent = () =>
   historyWindow ?? mainWindow ?? BrowserWindow.getFocusedWindow();
 
-const loadWindow = (window: BrowserWindow, windowName?: string) => {
+const loadWindow = (
+  window: BrowserWindow,
+  windowName?: string,
+  query: Record<string, string> = {},
+) => {
+  const queryParams = { ...query };
+  if (windowName) {
+    queryParams.window = windowName;
+  }
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     const url = new URL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
-    if (windowName) {
-      url.searchParams.set("window", windowName);
-    }
+    Object.entries(queryParams).forEach(([key, value]) => {
+      url.searchParams.set(key, value);
+    });
     window.loadURL(url.toString());
   } else {
+    const hasQuery = Object.keys(queryParams).length > 0;
     window.loadFile(
       path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
-      windowName ? { query: { window: windowName } } : undefined,
+      hasQuery ? { query: queryParams } : undefined,
     );
   }
 };
@@ -264,6 +277,44 @@ const createHistoryWindow = () => {
   });
 };
 
+const createSessionDetailsWindow = (sessionId: number) => {
+  const safeId = Number(sessionId);
+  if (!Number.isFinite(safeId)) return;
+
+  if (sessionDetailsWindow && !sessionDetailsWindow.isDestroyed()) {
+    syncAuxWindowsAlwaysOnTop();
+    loadWindow(sessionDetailsWindow, "session-details", {
+      sessionId: String(safeId),
+    });
+    sessionDetailsWindow.focus();
+    return;
+  }
+
+  const size = { width: 720, height: 640 };
+  const position = getOffsetPositionFromMain(size);
+  sessionDetailsWindow = new BrowserWindow({
+    width: size.width,
+    height: size.height,
+    minWidth: 520,
+    minHeight: 420,
+    ...(position ?? {}),
+    resizable: true,
+    title: "Session Details",
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
+    },
+  });
+
+  loadWindow(sessionDetailsWindow, "session-details", {
+    sessionId: String(safeId),
+  });
+  syncAuxWindowsAlwaysOnTop();
+
+  sessionDetailsWindow.on("closed", () => {
+    sessionDetailsWindow = null;
+  });
+};
+
 ipcMain.handle("always-on-top:get", () => {
   return mainWindow?.isAlwaysOnTop() ?? false;
 });
@@ -323,12 +374,14 @@ ipcMain.handle("history:open", () => {
   return true;
 });
 
-ipcMain.handle(
-  "session:add",
-  (_event, value: { startedAt: string; endedAt: string }) => {
-    return addSession(value.startedAt, value.endedAt);
-  },
-);
+ipcMain.handle("session-details:open", (_event, sessionId: number) => {
+  createSessionDetailsWindow(sessionId);
+  return true;
+});
+
+ipcMain.handle("session:add", (_event, value: SessionRecord) => {
+  return addSession(value);
+});
 
 ipcMain.handle(
   "sessions:list",
@@ -336,6 +389,10 @@ ipcMain.handle(
     return listSessions(value.page, value.pageSize);
   },
 );
+
+ipcMain.handle("sessions:detail", (_event, value: { id: number }) => {
+  return getSessionDetail(value.id);
+});
 
 const extractSessionRecords = (
   payload: unknown,
@@ -352,16 +409,52 @@ const extractSessionRecords = (
   const records = root.sessions
     .map((entry) => {
       if (!entry || typeof entry !== "object") return null;
-      const candidate = entry as { startedAt?: unknown; endedAt?: unknown };
+      const candidate = entry as {
+        startedAt?: unknown;
+        endedAt?: unknown;
+        focusSeconds?: unknown;
+        appUsage?: unknown;
+      };
       if (
         typeof candidate.startedAt !== "string" ||
         typeof candidate.endedAt !== "string"
       ) {
         return null;
       }
+      const focusSeconds =
+        typeof candidate.focusSeconds === "number" &&
+        Number.isFinite(candidate.focusSeconds)
+          ? candidate.focusSeconds
+          : undefined;
+      const appUsage = Array.isArray(candidate.appUsage)
+        ? (candidate.appUsage
+            .map((segment) => {
+              if (!segment || typeof segment !== "object") return null;
+              const usageCandidate = segment as {
+                appName?: unknown;
+                startedAt?: unknown;
+                endedAt?: unknown;
+              };
+              if (
+                typeof usageCandidate.appName !== "string" ||
+                typeof usageCandidate.startedAt !== "string" ||
+                typeof usageCandidate.endedAt !== "string"
+              ) {
+                return null;
+              }
+              return {
+                appName: usageCandidate.appName,
+                startedAt: usageCandidate.startedAt,
+                endedAt: usageCandidate.endedAt,
+              } satisfies SessionAppUsage;
+            })
+            .filter(Boolean) as SessionAppUsage[])
+        : undefined;
       return {
         startedAt: candidate.startedAt,
         endedAt: candidate.endedAt,
+        focusSeconds,
+        appUsage,
       };
     })
     .filter(Boolean) as SessionRecord[];
@@ -396,7 +489,7 @@ ipcMain.handle("sessions:export", async () => {
 
   const sessions = listAllSessions();
   const payload = {
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
     sessions,
   };

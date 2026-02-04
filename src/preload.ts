@@ -21,6 +21,22 @@ type SessionEntry = {
   id: number;
   startedAt: string;
   endedAt: string;
+  focusSeconds?: number | null;
+  hasUsage?: boolean;
+};
+
+type SessionAppUsage = {
+  appName: string;
+  startedAt: string;
+  endedAt: string;
+};
+
+type SessionDetail = {
+  id: number;
+  startedAt: string;
+  endedAt: string;
+  focusSeconds?: number | null;
+  appUsage: SessionAppUsage[];
 };
 
 type SessionList = {
@@ -64,14 +80,28 @@ const history = {
 };
 
 const sessions = {
-  add: (value: { startedAt: string; endedAt: string }) =>
-    ipcRenderer.invoke("session:add", value) as Promise<number>,
+  add: (value: {
+    startedAt: string;
+    endedAt: string;
+    focusSeconds?: number | null;
+    appUsage?: SessionAppUsage[];
+  }) => ipcRenderer.invoke("session:add", value) as Promise<number>,
   list: (value: { page: number; pageSize: number }) =>
     ipcRenderer.invoke("sessions:list", value) as Promise<SessionList>,
+  detail: (value: { id: number }) =>
+    ipcRenderer.invoke(
+      "sessions:detail",
+      value,
+    ) as Promise<SessionDetail | null>,
   export: () =>
     ipcRenderer.invoke("sessions:export") as Promise<SessionTransferResult>,
   import: () =>
     ipcRenderer.invoke("sessions:import") as Promise<SessionTransferResult>,
+};
+
+const sessionDetails = {
+  openWindow: (sessionId: number) =>
+    ipcRenderer.invoke("session-details:open", sessionId),
 };
 
 contextBridge.exposeInMainWorld("electronAPI", {
@@ -79,5 +109,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
   activeApp,
   config,
   history,
+  sessionDetails,
   sessions,
 });
