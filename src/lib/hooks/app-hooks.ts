@@ -7,6 +7,7 @@ import {
 } from "@/lib/pomodoro";
 import type {
   SessionDetail,
+  SessionFocusSummary,
   SessionList,
   SessionTransferResult,
 } from "@/lib/session-types";
@@ -45,6 +46,7 @@ type SessionAPI = {
   }) => Promise<number>;
   list?: (value: { page: number; pageSize: number }) => Promise<SessionList>;
   detail?: (value: { id: number }) => Promise<SessionDetail | null>;
+  summary?: () => Promise<SessionFocusSummary>;
   export?: () => Promise<SessionTransferResult>;
   import?: () => Promise<SessionTransferResult>;
 };

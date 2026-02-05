@@ -8,6 +8,7 @@ import Store from "electron-store";
 import {
   addSession,
   closeSessionStore,
+  getSessionFocusSummary,
   getSessionDetail,
   listAllSessions,
   listSessions,
@@ -254,13 +255,13 @@ const createHistoryWindow = () => {
     return;
   }
 
-  const size = { width: 600, height: 520 };
+  const size = { width: 720, height: 680 };
   const position = getOffsetPositionFromMain(size);
   historyWindow = new BrowserWindow({
     width: size.width,
     height: size.height,
-    minWidth: 500,
-    minHeight: 360,
+    minWidth: 720,
+    minHeight: 520,
     ...(position ?? {}),
     resizable: true,
     title: "Session History",
@@ -392,6 +393,10 @@ ipcMain.handle(
 
 ipcMain.handle("sessions:detail", (_event, value: { id: number }) => {
   return getSessionDetail(value.id);
+});
+
+ipcMain.handle("sessions:summary", () => {
+  return getSessionFocusSummary();
 });
 
 const extractSessionRecords = (

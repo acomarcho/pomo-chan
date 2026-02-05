@@ -38,3 +38,9 @@ export type SessionTransferResult = {
   filePath?: string;
   reason?: "canceled" | "invalid-format" | "read-failed" | "write-failed";
 };
+
+export type SessionFocusSummary = {
+  todaySeconds: number;
+  weekSeconds: number;
+  monthSeconds: number;
+};
