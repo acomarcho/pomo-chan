@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import type {
   SessionAppUsage,
   SessionDetail,
+  SessionFocusSummary,
   SessionList,
   SessionTransferResult,
 } from "@/lib/session-types";
@@ -118,5 +119,42 @@ export const useSessionDetail = (sessionId?: number | null) => {
     error,
     refresh,
     isAvailable: Boolean(api?.detail),
+  };
+};
+
+export const useSessionSummary = () => {
+  const api = window.electronAPI?.sessions;
+  const [summary, setSummary] = useState<SessionFocusSummary | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    if (!api?.summary) {
+      setError(null);
+      setSummary(null);
+      return;
+    }
+    setIsLoading(true);
+    setError(null);
+    try {
+      const result = await api.summary();
+      setSummary(result);
+    } catch {
+      setError("Failed to load session summary.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [api]);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  return {
+    summary,
+    isLoading,
+    error,
+    refresh,
+    isAvailable: Boolean(api?.summary),
   };
 };

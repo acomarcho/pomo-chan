@@ -8,6 +8,7 @@ import type {
   SessionEntry,
   SessionList,
   SessionRecord,
+  SessionFocusSummary,
 } from "./lib/session-types";
 
 let db: Database.Database | null = null;
@@ -73,6 +74,34 @@ const ensureDb = () => {
     "CREATE INDEX IF NOT EXISTS session_app_usage_session_id ON session_app_usage(session_id)",
   );
   return db;
+};
+
+const getFocusSecondsBetween = (
+  database: Database.Database,
+  startIso: string,
+  endIso: string,
+) => {
+  const row = database
+    .prepare(
+      `
+      SELECT
+        COALESCE(
+          SUM(
+            COALESCE(
+              focus_seconds,
+              CAST(strftime('%s', ended_at) AS INTEGER) -
+              CAST(strftime('%s', started_at) AS INTEGER)
+            )
+          ),
+          0
+        ) AS total
+      FROM sessions
+      WHERE started_at >= ? AND started_at <= ?
+      `,
+    )
+    .get(startIso, endIso) as { total: number } | undefined;
+  const total = Number(row?.total ?? 0);
+  return Math.max(0, total);
 };
 
 export const addSession = (record: SessionRecord) => {
@@ -263,6 +292,38 @@ export const getSessionDetail = (sessionId: number): SessionDetail | null => {
     endedAt: session.endedAt,
     focusSeconds: session.focusSeconds ?? null,
     appUsage: usage,
+  };
+};
+
+export const getSessionFocusSummary = (): SessionFocusSummary => {
+  const database = ensureDb();
+  const now = new Date();
+  const endIso = now.toISOString();
+  const startOfToday = new Date(now);
+  startOfToday.setHours(0, 0, 0, 0);
+
+  const startOfWeek = new Date(startOfToday);
+  startOfWeek.setDate(startOfWeek.getDate() - 6);
+
+  const startOfMonth = new Date(startOfToday);
+  startOfMonth.setDate(startOfMonth.getDate() - 29);
+
+  return {
+    todaySeconds: getFocusSecondsBetween(
+      database,
+      startOfToday.toISOString(),
+      endIso,
+    ),
+    weekSeconds: getFocusSecondsBetween(
+      database,
+      startOfWeek.toISOString(),
+      endIso,
+    ),
+    monthSeconds: getFocusSecondsBetween(
+      database,
+      startOfMonth.toISOString(),
+      endIso,
+    ),
   };
 };
 
