@@ -18,11 +18,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useSessionDetailsWindowOpener } from "@/lib/hooks/app-hooks";
 import {
   useSessionHistory,
   useSessionSummary,
 } from "@/lib/hooks/session-hooks";
+import type { SessionImportMode } from "@/lib/session-types";
 
 const PAGE_SIZE = 10;
 
@@ -116,6 +118,7 @@ export const HistoryWindow = () => {
     useSessionDetailsWindowOpener();
   const [isTransferring, setIsTransferring] = useState(false);
   const [showImportConfirm, setShowImportConfirm] = useState(false);
+  const [importMode, setImportMode] = useState<SessionImportMode>("merge");
 
   const totalPages = useMemo(() => {
     if (data.total === 0) return 1;
@@ -207,10 +210,10 @@ export const HistoryWindow = () => {
     }
   };
 
-  const runImport = async () => {
+  const runImport = async (mode: SessionImportMode) => {
     setIsTransferring(true);
     try {
-      const result = await importSessions();
+      const result = await importSessions(mode);
       if (!result || !result.ok) {
         if (result?.reason !== "canceled") {
           toast.error("Failed to import sessions.");
@@ -232,16 +235,12 @@ export const HistoryWindow = () => {
   };
 
   const handleImport = () => {
-    if (data.total > 0) {
-      setShowImportConfirm(true);
-      return;
-    }
-    void runImport();
+    setShowImportConfirm(true);
   };
 
   const handleConfirmImport = () => {
     setShowImportConfirm(false);
-    void runImport();
+    void runImport(importMode);
   };
 
   const handleRefresh = () => {
@@ -326,12 +325,58 @@ export const HistoryWindow = () => {
         <Dialog open={showImportConfirm} onOpenChange={setShowImportConfirm}>
           <DialogContent className="text-left">
             <DialogHeader>
-              <DialogTitle>Replace session history?</DialogTitle>
+              <DialogTitle>Import sessions</DialogTitle>
               <DialogDescription>
-                Importing will remove all existing sessions from this device.
-                This action cannot be undone.
+                Choose how the imported sessions should be applied.
               </DialogDescription>
             </DialogHeader>
+            <div className="space-y-3">
+              <RadioGroup
+                value={importMode}
+                onValueChange={(value) =>
+                  setImportMode(value as SessionImportMode)
+                }
+                className="gap-3"
+              >
+                <label
+                  htmlFor="import-merge"
+                  className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 px-3 py-3 text-sm transition hover:border-slate-300"
+                >
+                  <RadioGroupItem
+                    id="import-merge"
+                    value="merge"
+                    className="mt-0.5"
+                  />
+                  <div className="space-y-1">
+                    <p className="font-semibold text-slate-900">Merge</p>
+                    <p className="text-xs text-slate-500">
+                      Keep existing sessions and add entries from the import.
+                    </p>
+                  </div>
+                </label>
+                <label
+                  htmlFor="import-overwrite"
+                  className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 px-3 py-3 text-sm transition hover:border-slate-300"
+                >
+                  <RadioGroupItem
+                    id="import-overwrite"
+                    value="overwrite"
+                    className="mt-0.5"
+                  />
+                  <div className="space-y-1">
+                    <p className="font-semibold text-slate-900">Overwrite</p>
+                    <p className="text-xs text-slate-500">
+                      Replace all current sessions with the imported file.
+                    </p>
+                  </div>
+                </label>
+              </RadioGroup>
+              {importMode === "overwrite" && (
+                <p className="text-xs font-semibold text-red-500">
+                  Overwrite will remove all existing sessions on this device.
+                </p>
+              )}
+            </div>
             <DialogFooter>
               <Button
                 variant="outline"
@@ -342,12 +387,12 @@ export const HistoryWindow = () => {
                 Cancel
               </Button>
               <Button
-                variant="destructive"
+                variant={importMode === "overwrite" ? "destructive" : "default"}
                 type="button"
                 onClick={handleConfirmImport}
                 disabled={isTransferring}
               >
-                Replace sessions
+                {importMode === "overwrite" ? "Overwrite sessions" : "Import"}
               </Button>
             </DialogFooter>
           </DialogContent>

@@ -226,6 +226,21 @@ export const listAllSessions = (): SessionRecord[] => {
   }));
 };
 
+const createSessionKey = (record: SessionRecord) => {
+  return `${record.startedAt}::${record.endedAt}`;
+};
+
+const sortByStartedAt = (records: SessionRecord[]) => {
+  return records.slice().sort((a, b) => {
+    const aTime = Date.parse(a.startedAt);
+    const bTime = Date.parse(b.startedAt);
+    if (!Number.isFinite(aTime) || !Number.isFinite(bTime)) {
+      return a.startedAt.localeCompare(b.startedAt);
+    }
+    return aTime - bTime;
+  });
+};
+
 export const replaceSessions = (entries: SessionRecord[]) => {
   const database = ensureDb();
   const insertSession = database.prepare(
@@ -264,6 +279,56 @@ export const replaceSessions = (entries: SessionRecord[]) => {
     }
   });
   replace(entries);
+};
+
+export const mergeSessions = (entries: SessionRecord[]) => {
+  const database = ensureDb();
+  const existingKeys = new Set(
+    listAllSessions().map((record) => createSessionKey(record)),
+  );
+  const uniqueEntries = entries.filter((record) => {
+    const key = createSessionKey(record);
+    if (existingKeys.has(key)) {
+      return false;
+    }
+    existingKeys.add(key);
+    return true;
+  });
+  if (uniqueEntries.length === 0) {
+    return 0;
+  }
+  const sortedEntries = sortByStartedAt(uniqueEntries);
+  const insertSession = database.prepare(
+    "INSERT INTO sessions (started_at, ended_at, focus_seconds) VALUES (?, ?, ?)",
+  );
+  const insertUsage = database.prepare(
+    "INSERT INTO session_app_usage (session_id, app_name, started_at, ended_at) VALUES (?, ?, ?, ?)",
+  );
+  const insertMany = database.transaction((records: SessionRecord[]) => {
+    for (const record of records) {
+      const focusSeconds =
+        record.focusSeconds ??
+        (record.appUsage ? calculateFocusSeconds(record.appUsage) : null);
+      const info = insertSession.run(
+        record.startedAt,
+        record.endedAt,
+        focusSeconds,
+      );
+      const sessionId = Number(info.lastInsertRowid);
+      if (record.appUsage && record.appUsage.length > 0) {
+        for (const segment of record.appUsage) {
+          insertUsage.run(
+            sessionId,
+            segment.appName,
+            segment.startedAt,
+            segment.endedAt,
+          );
+        }
+      }
+    }
+  });
+  insertMany(sortedEntries);
+  return sortedEntries.length;
 };
 
 export const getSessionDetail = (sessionId: number): SessionDetail | null => {

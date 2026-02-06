@@ -12,9 +12,14 @@ import {
   getSessionDetail,
   listAllSessions,
   listSessions,
+  mergeSessions,
   replaceSessions,
 } from "./session-store";
-import type { SessionAppUsage, SessionRecord } from "./lib/session-types";
+import type {
+  SessionAppUsage,
+  SessionImportMode,
+  SessionRecord,
+} from "./lib/session-types";
 import {
   DEFAULT_BREAK_MINUTES,
   DEFAULT_FOCUS_MINUTES,
@@ -508,46 +513,56 @@ ipcMain.handle("sessions:export", async () => {
   }
 });
 
-ipcMain.handle("sessions:import", async () => {
-  const parent = getDialogParent();
-  const { canceled, filePaths } = await dialog.showOpenDialog(parent, {
-    title: "Import sessions",
-    filters: [{ name: "JSON", extensions: ["json"] }],
-    properties: ["openFile"],
-  });
-  if (canceled || filePaths.length === 0) {
-    return { ok: false, reason: "canceled" } as const;
-  }
+ipcMain.handle(
+  "sessions:import",
+  async (_event, options?: { mode?: SessionImportMode }) => {
+    const parent = getDialogParent();
+    const { canceled, filePaths } = await dialog.showOpenDialog(parent, {
+      title: "Import sessions",
+      filters: [{ name: "JSON", extensions: ["json"] }],
+      properties: ["openFile"],
+    });
+    if (canceled || filePaths.length === 0) {
+      return { ok: false, reason: "canceled" } as const;
+    }
 
-  let raw = "";
-  try {
-    raw = await fs.readFile(filePaths[0], "utf8");
-  } catch (error) {
-    console.error("Failed to read sessions file", error);
-    return { ok: false, reason: "read-failed" } as const;
-  }
+    let raw = "";
+    try {
+      raw = await fs.readFile(filePaths[0], "utf8");
+    } catch (error) {
+      console.error("Failed to read sessions file", error);
+      return { ok: false, reason: "read-failed" } as const;
+    }
 
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch (error) {
-    console.error("Failed to parse sessions file", error);
-    return { ok: false, reason: "invalid-format" } as const;
-  }
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch (error) {
+      console.error("Failed to parse sessions file", error);
+      return { ok: false, reason: "invalid-format" } as const;
+    }
 
-  const { records, recognized, sourceCount } = extractSessionRecords(parsed);
-  if (!recognized || (sourceCount > 0 && records.length === 0)) {
-    return { ok: false, reason: "invalid-format" } as const;
-  }
+    const { records, recognized, sourceCount } = extractSessionRecords(parsed);
+    if (!recognized || (sourceCount > 0 && records.length === 0)) {
+      return { ok: false, reason: "invalid-format" } as const;
+    }
 
-  try {
-    replaceSessions(records);
-    return { ok: true, count: records.length } as const;
-  } catch (error) {
-    console.error("Failed to import sessions", error);
-    return { ok: false, reason: "write-failed" } as const;
-  }
-});
+    const mode = options?.mode === "overwrite" ? "overwrite" : "merge";
+    try {
+      let count = 0;
+      if (mode === "overwrite") {
+        replaceSessions(records);
+        count = records.length;
+      } else {
+        count = mergeSessions(records);
+      }
+      return { ok: true, count } as const;
+    } catch (error) {
+      console.error("Failed to import sessions", error);
+      return { ok: false, reason: "write-failed" } as const;
+    }
+  },
+);
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.

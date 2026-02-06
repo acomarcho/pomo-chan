@@ -4,6 +4,7 @@ import { contextBridge, ipcRenderer } from "electron";
 import type {
   SessionDetail,
   SessionFocusSummary,
+  SessionImportMode,
   SessionList,
   SessionTransferResult,
 } from "./lib/session-types";
@@ -69,8 +70,11 @@ const sessions = {
     ipcRenderer.invoke("sessions:summary") as Promise<SessionFocusSummary>,
   export: () =>
     ipcRenderer.invoke("sessions:export") as Promise<SessionTransferResult>,
-  import: () =>
-    ipcRenderer.invoke("sessions:import") as Promise<SessionTransferResult>,
+  import: (value: { mode: SessionImportMode }) =>
+    ipcRenderer.invoke(
+      "sessions:import",
+      value,
+    ) as Promise<SessionTransferResult>,
 };
 
 const sessionDetails = {

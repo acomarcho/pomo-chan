@@ -8,6 +8,7 @@ import {
 import type {
   SessionDetail,
   SessionFocusSummary,
+  SessionImportMode,
   SessionList,
   SessionTransferResult,
 } from "@/lib/session-types";
@@ -48,7 +49,9 @@ type SessionAPI = {
   detail?: (value: { id: number }) => Promise<SessionDetail | null>;
   summary?: () => Promise<SessionFocusSummary>;
   export?: () => Promise<SessionTransferResult>;
-  import?: () => Promise<SessionTransferResult>;
+  import?: (value: {
+    mode: SessionImportMode;
+  }) => Promise<SessionTransferResult>;
 };
 
 type HistoryAPI = {

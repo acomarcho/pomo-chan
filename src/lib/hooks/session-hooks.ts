@@ -3,6 +3,7 @@ import type {
   SessionAppUsage,
   SessionDetail,
   SessionFocusSummary,
+  SessionImportMode,
   SessionList,
   SessionTransferResult,
 } from "@/lib/session-types";
@@ -63,10 +64,13 @@ export const useSessionHistory = (page: number, pageSize: number) => {
     return api.export() as Promise<SessionTransferResult>;
   }, [api]);
 
-  const importSessions = useCallback(async () => {
-    if (!api?.import) return null;
-    return api.import() as Promise<SessionTransferResult>;
-  }, [api]);
+  const importSessions = useCallback(
+    async (mode: SessionImportMode) => {
+      if (!api?.import) return null;
+      return api.import({ mode }) as Promise<SessionTransferResult>;
+    },
+    [api],
+  );
 
   return {
     data,
