@@ -9,6 +9,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useSessionDetailsWindowOpener } from "@/lib/hooks/app-hooks";
 import {
   useSessionHistory,
@@ -17,26 +26,61 @@ import {
 
 const PAGE_SIZE = 10;
 
-const formatTimestamp = (value: string) => {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-  return date.toLocaleString();
+const timeFormatter = new Intl.DateTimeFormat("en-US", {
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: true,
+});
+
+const formatDatePart = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}/${month}/${day}`;
 };
 
-const formatDurationMinutes = (
+const getDurationMinutes = (
   startedAt: string,
   endedAt: string,
   focusSeconds?: number | null,
 ) => {
   if (typeof focusSeconds === "number" && Number.isFinite(focusSeconds)) {
-    const minutes = Math.round(focusSeconds / 60);
-    return String(Math.max(0, minutes));
+    return Math.max(0, Math.round(focusSeconds / 60));
   }
   const start = new Date(startedAt);
   const end = new Date(endedAt);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return "-";
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null;
   const minutes = Math.round((end.getTime() - start.getTime()) / 60000);
-  return String(Math.max(0, minutes));
+  return Math.max(0, minutes);
+};
+
+const formatSessionTimeRange = (
+  startedAt: string,
+  endedAt: string,
+  focusSeconds?: number | null,
+) => {
+  const start = new Date(startedAt);
+  const end = new Date(endedAt);
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return "-";
+  }
+
+  const sameDay =
+    start.getFullYear() === end.getFullYear() &&
+    start.getMonth() === end.getMonth() &&
+    start.getDate() === end.getDate();
+  const durationMinutes = getDurationMinutes(startedAt, endedAt, focusSeconds);
+  const durationSuffix =
+    typeof durationMinutes === "number" ? ` (${durationMinutes} mins)` : "";
+  const startLabel = `${formatDatePart(start)} ${timeFormatter.format(start)}`;
+
+  if (sameDay) {
+    return `${startLabel} - ${timeFormatter.format(end)}${durationSuffix}`;
+  }
+
+  return `${startLabel} - ${formatDatePart(end)} ${timeFormatter.format(end)}${durationSuffix}`;
 };
 
 const formatFocusDuration = (seconds: number) => {
@@ -88,6 +132,34 @@ export const HistoryWindow = () => {
   const canNext = page < totalPages;
   const showEmpty = !isLoading && data.items.length === 0;
   const canTransfer = isTransferAvailable && !isTransferring;
+  const firstResultIndex = data.total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const lastResultIndex =
+    data.total === 0 ? 0 : Math.min(page * PAGE_SIZE, data.total);
+  const pageItems = useMemo(() => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, index) => index + 1);
+    }
+    const firstPage = 1;
+    const lastPage = totalPages;
+    const start = Math.max(firstPage + 1, page - 1);
+    const end = Math.min(lastPage - 1, page + 1);
+    const items: Array<number | "dots-start" | "dots-end"> = [firstPage];
+
+    if (start > firstPage + 1) {
+      items.push("dots-start");
+    }
+
+    for (let currentPage = start; currentPage <= end; currentPage += 1) {
+      items.push(currentPage);
+    }
+
+    if (end < lastPage - 1) {
+      items.push("dots-end");
+    }
+
+    items.push(lastPage);
+    return items;
+  }, [page, totalPages]);
   const summarySnapshot = summary ?? {
     todaySeconds: 0,
     weekSeconds: 0,
@@ -280,9 +352,9 @@ export const HistoryWindow = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-        <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200/70 bg-white/70 px-3 py-2">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">
-            Total {data.total}
+            Total {data.total} · Showing {firstResultIndex} to {lastResultIndex}
           </p>
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold text-gray-500">
@@ -295,22 +367,6 @@ export const HistoryWindow = () => {
               disabled={isLoading || !isAvailable}
             >
               Refresh
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-              disabled={!canPrevious || isLoading}
-            >
-              Prev
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
-              disabled={!canNext || isLoading}
-            >
-              Next
             </Button>
           </div>
         </div>
@@ -330,49 +386,117 @@ export const HistoryWindow = () => {
             </div>
           )}
           {!showEmpty && isAvailable && (
-            <table className="w-full border-collapse text-left text-sm">
-              <thead className="bg-gray-50 text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
-                <tr>
-                  <th className="px-4 py-3">ID</th>
-                  <th className="px-4 py-3">Duration (min)</th>
-                  <th className="px-4 py-3">Started at</th>
-                  <th className="px-4 py-3">Ended at</th>
-                  <th className="px-4 py-3">Details</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table>
+              <TableHeader className="bg-gray-50 text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 [&_tr]:border-b-gray-200">
+                <TableRow>
+                  <TableHead className="px-4 py-3">ID</TableHead>
+                  <TableHead className="px-4 py-3 whitespace-normal">
+                    Time range
+                  </TableHead>
+                  <TableHead className="px-4 py-3">Details</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {data.items.map((session) => (
-                  <tr key={session.id} className="border-t border-gray-200">
-                    <td className="px-4 py-3 font-semibold text-gray-900">
+                  <TableRow key={session.id} className="border-gray-200">
+                    <TableCell className="px-4 py-3 font-semibold text-gray-900">
                       {session.id}
-                    </td>
-                    <td className="px-4 py-3 text-gray-700">
-                      {formatDurationMinutes(
+                    </TableCell>
+                    <TableCell className="px-4 py-3 text-gray-700 whitespace-normal">
+                      {formatSessionTimeRange(
                         session.startedAt,
                         session.endedAt,
                         session.focusSeconds,
                       )}
-                    </td>
-                    <td className="px-4 py-3 text-gray-700">
-                      {formatTimestamp(session.startedAt)}
-                    </td>
-                    <td className="px-4 py-3 text-gray-700">
-                      {formatTimestamp(session.endedAt)}
-                    </td>
-                    <td className="px-4 py-3">
+                    </TableCell>
+                    <TableCell className="px-4 py-3">
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => openSessionDetailsWindow(session.id)}
                         disabled={!session.hasUsage || !isDetailsAvailable}
                       >
-                        Show details
+                        Details
                       </Button>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+              <TableFooter className="border-t border-gray-200 bg-white">
+                <TableRow className="hover:bg-transparent">
+                  <TableCell colSpan={3} className="px-4 py-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <p className="text-xs text-gray-500">
+                        Showing {firstResultIndex} to {lastResultIndex} of{" "}
+                        {data.total} sessions
+                      </p>
+                      <div className="flex flex-wrap items-center gap-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setPage(1)}
+                          disabled={!canPrevious || isLoading}
+                        >
+                          First
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            setPage((prev) => Math.max(1, prev - 1))
+                          }
+                          disabled={!canPrevious || isLoading}
+                        >
+                          Prev
+                        </Button>
+                        {pageItems.map((item, index) => {
+                          if (typeof item !== "number") {
+                            return (
+                              <span
+                                key={`${item}-${index}`}
+                                className="px-2 text-xs text-gray-400"
+                              >
+                                …
+                              </span>
+                            );
+                          }
+
+                          return (
+                            <Button
+                              key={item}
+                              size="sm"
+                              variant={item === page ? "default" : "outline"}
+                              onClick={() => setPage(item)}
+                              disabled={isLoading}
+                            >
+                              {item}
+                            </Button>
+                          );
+                        })}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            setPage((prev) => Math.min(totalPages, prev + 1))
+                          }
+                          disabled={!canNext || isLoading}
+                        >
+                          Next
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setPage(totalPages)}
+                          disabled={!canNext || isLoading}
+                        >
+                          Last
+                        </Button>
+                      </div>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              </TableFooter>
+            </Table>
           )}
         </div>
       </section>
