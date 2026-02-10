@@ -396,6 +396,7 @@ export const TimerWindow = () => {
     audio: null,
     token: 0,
   });
+  const [isEndSessionConfirmOpen, setIsEndSessionConfirmOpen] = useState(false);
   const usageSegmentsRef = useRef<SessionAppUsage[]>([]);
   const activeSegmentRef = useRef<{
     appName: string;
@@ -485,6 +486,7 @@ export const TimerWindow = () => {
     requestModeSwitch,
     confirmModeSwitch,
     cancelModeSwitch,
+    endFocusSessionEarly,
   } = usePomodoroTimer(config, {
     onVoiceAudioPlay: handleVoiceAudioPlay,
     onFocusComplete: handleFocusComplete,
@@ -520,6 +522,23 @@ export const TimerWindow = () => {
   const showResume = !isRunning && remaining !== total;
   const primaryLabel = isRunning ? "Pause" : showResume ? "Resume" : "Start";
   const switchLabel = mode === "focus" ? "Break" : "Focus";
+  const canEndSessionEarly = mode === "focus" && !isRunning && showResume;
+
+  const requestEndSessionEarly = useCallback(() => {
+    if (!canEndSessionEarly) return;
+    setIsEndSessionConfirmOpen(true);
+  }, [canEndSessionEarly]);
+
+  const cancelEndSessionEarly = useCallback(() => {
+    setIsEndSessionConfirmOpen(false);
+  }, []);
+
+  const confirmEndSessionEarly = useCallback(() => {
+    const didEnd = endFocusSessionEarly();
+    if (didEnd) {
+      setIsEndSessionConfirmOpen(false);
+    }
+  }, [endFocusSessionEarly]);
 
   return (
     <div className="flex min-h-screen flex-col bg-white px-4 py-4 text-gray-900">
@@ -563,7 +582,7 @@ export const TimerWindow = () => {
         />
       </section>
 
-      <div className="flex flex-1 flex-col justify-end">
+      <div className="flex flex-1 flex-col justify-center">
         <section className="text-center">
           <h2 className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-500">
             {MODES[mode].label} Timer
@@ -593,6 +612,18 @@ export const TimerWindow = () => {
             {switchLabel}
           </Button>
         </section>
+        {canEndSessionEarly && (
+          <section className="flex items-center justify-center pb-2">
+            <Button
+              className="rounded-full px-4 py-2 text-sm font-semibold text-destructive hover:bg-destructive/10 hover:text-destructive"
+              variant="ghost"
+              type="button"
+              onClick={requestEndSessionEarly}
+            >
+              End session
+            </Button>
+          </section>
+        )}
       </div>
 
       <Dialog
@@ -621,6 +652,39 @@ export const TimerWindow = () => {
               onClick={confirmModeSwitch}
             >
               Switch to {pendingMode ? MODES[pendingMode].label : switchLabel}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={isEndSessionConfirmOpen}
+        onOpenChange={(open) => {
+          if (!open) cancelEndSessionEarly();
+        }}
+      >
+        <DialogContent className="text-left">
+          <DialogHeader>
+            <DialogTitle>End this focus session now?</DialogTitle>
+            <DialogDescription>
+              We&apos;ll save what you&apos;ve completed so far to your session
+              history, then move you to a break timer.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              type="button"
+              onClick={cancelEndSessionEarly}
+            >
+              Keep focusing
+            </Button>
+            <Button
+              variant="destructive"
+              type="button"
+              onClick={confirmEndSessionEarly}
+            >
+              End session
             </Button>
           </DialogFooter>
         </DialogContent>
