@@ -302,6 +302,25 @@ export const usePomodoroTimer = (
     setPendingMode(null);
   }, []);
 
+  const endFocusSessionEarly = useCallback(() => {
+    if (mode !== "focus" || isRunning) return false;
+
+    const startedAt = focusStartedAtRef.current;
+    if (!startedAt) return false;
+
+    const endedAt = new Date();
+    onFocusCompleteRef.current?.({
+      startedAt: startedAt.toISOString(),
+      endedAt: endedAt.toISOString(),
+    });
+
+    focusStartedAtRef.current = null;
+    setPendingMode(null);
+    setMode("break");
+    setRemaining(getSecondsForMode("break"));
+    return true;
+  }, [getSecondsForMode, isRunning, mode]);
+
   return {
     mode,
     remaining,
@@ -313,5 +332,6 @@ export const usePomodoroTimer = (
     requestModeSwitch,
     confirmModeSwitch,
     cancelModeSwitch,
+    endFocusSessionEarly,
   };
 };
