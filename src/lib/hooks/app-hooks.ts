@@ -62,6 +62,10 @@ type SessionDetailsAPI = {
   openWindow?: (sessionId: number) => Promise<boolean>;
 };
 
+type FocusSessionAPI = {
+  setActive?: (value: boolean) => void;
+};
+
 declare global {
   interface Window {
     electronAPI?: {
@@ -69,6 +73,7 @@ declare global {
       activeApp?: ActiveAppAPI;
       config?: ConfigAPI;
       history?: HistoryAPI;
+      focusSession?: FocusSessionAPI;
       sessionDetails?: SessionDetailsAPI;
       sessions?: SessionAPI;
     };

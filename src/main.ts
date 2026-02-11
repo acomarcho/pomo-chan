@@ -35,6 +35,8 @@ let mainWindow: BrowserWindow | null = null;
 let configWindow: BrowserWindow | null = null;
 let historyWindow: BrowserWindow | null = null;
 let sessionDetailsWindow: BrowserWindow | null = null;
+let hasActiveFocusSession = false;
+let isBypassingCloseConfirmation = false;
 
 const execFileAsync = promisify(execFile);
 
@@ -194,6 +196,22 @@ const loadWindow = (
   }
 };
 
+const showCloseConfirmationDialog = async (window: BrowserWindow) => {
+  const { response } = await dialog.showMessageBox(window, {
+    type: "warning",
+    buttons: ["Keep Session", "Quit"],
+    defaultId: 0,
+    cancelId: 0,
+    noLink: true,
+    title: "Quit Pomo-chan?",
+    message: "A focus session is currently running or paused.",
+    detail:
+      "If you quit now, your in-progress focus session will be lost. Do you want to quit anyway?",
+  });
+
+  return response === 1;
+};
+
 const createWindow = () => {
   // Create the browser window.
   mainWindow = new BrowserWindow({
@@ -216,7 +234,35 @@ const createWindow = () => {
     mainWindow.webContents.openDevTools();
   }
 
+  mainWindow.on("close", (event) => {
+    if (isBypassingCloseConfirmation || !hasActiveFocusSession) {
+      return;
+    }
+
+    event.preventDefault();
+    const window = mainWindow;
+    if (!window || window.isDestroyed()) {
+      return;
+    }
+
+    void (async () => {
+      const shouldClose = await showCloseConfirmationDialog(window);
+      if (!shouldClose) {
+        return;
+      }
+
+      if (!mainWindow || mainWindow.isDestroyed()) {
+        return;
+      }
+
+      isBypassingCloseConfirmation = true;
+      mainWindow.close();
+    })();
+  });
+
   mainWindow.on("closed", () => {
+    hasActiveFocusSession = false;
+    isBypassingCloseConfirmation = false;
     mainWindow = null;
   });
 };
@@ -339,6 +385,14 @@ ipcMain.handle("active-app:get", async () => {
 
 ipcMain.handle("active-app:debug", async () => {
   return getActiveAppInfo();
+});
+
+ipcMain.on("focus-session:set-active", (event, isActive: boolean) => {
+  const senderWindow = BrowserWindow.fromWebContents(event.sender);
+  if (!senderWindow || senderWindow !== mainWindow) {
+    return;
+  }
+  hasActiveFocusSession = Boolean(isActive);
 });
 
 ipcMain.handle("config:get", () => {
