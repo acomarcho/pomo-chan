@@ -11,6 +11,8 @@ export type SessionRecord = {
   appUsage?: SessionAppUsage[];
 };
 
+export type SessionImportMode = "merge" | "overwrite";
+
 export type SessionEntry = {
   id: number;
   startedAt: string;
