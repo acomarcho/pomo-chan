@@ -1,9 +1,53 @@
 import { app, BrowserWindow, dialog, ipcMain, screen } from "electron";
 import fs from "node:fs/promises";
 import path from "node:path";
-import started from "electron-squirrel-startup";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import Store from "electron-store";
-import { activeWindow } from "get-windows";
+
+const execFileAsync = promisify(execFile);
+
+const getWindowsBinary = app.isPackaged
+  ? path.join(
+      process.resourcesPath,
+      "app.asar.unpacked",
+      "node_modules",
+      "get-windows",
+      "main",
+    )
+  : path.join(app.getAppPath(), "node_modules", "get-windows", "main");
+
+const getActiveWindowNative = async (): Promise<{
+  title?: string;
+  owner?: { name?: string };
+} | null> => {
+  try {
+    const { stdout } = await execFileAsync(getWindowsBinary);
+    if (!stdout.trim()) return null;
+    return JSON.parse(stdout);
+  } catch {
+    return null;
+  }
+};
+
+const getActiveAppInfo = async (): Promise<ActiveAppInfo> => {
+  try {
+    const win = await getActiveWindowNative();
+    if (!win) {
+      return { title: "", ownerName: "" };
+    }
+    return {
+      title: win.title || "",
+      ownerName: win.owner?.name || "",
+    };
+  } catch (error) {
+    return {
+      title: "",
+      ownerName: "",
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+};
 import {
   addSession,
   closeSessionStore,
@@ -18,17 +62,12 @@ import type {
   SessionAppUsage,
   SessionImportMode,
   SessionRecord,
-} from "./lib/session-types";
+} from "../src/lib/session-types";
 import {
   DEFAULT_BREAK_MINUTES,
   DEFAULT_FOCUS_MINUTES,
   clampTimerMinutes,
-} from "./lib/pomodoro";
-
-// Handle creating/removing shortcuts on Windows when installing/uninstalling.
-if (started) {
-  app.quit();
-}
+} from "../src/lib/pomodoro";
 
 let mainWindow: BrowserWindow | null = null;
 let configWindow: BrowserWindow | null = null;
@@ -72,25 +111,6 @@ const configStore = new Store<AppConfig>({
   },
 });
 
-const getActiveAppInfo = async (): Promise<ActiveAppInfo> => {
-  try {
-    const win = await activeWindow();
-    if (!win) {
-      return { title: "", ownerName: "" };
-    }
-    return {
-      title: win.title || "",
-      ownerName: win.owner?.name || "",
-    };
-  } catch (error) {
-    return {
-      title: "",
-      ownerName: "",
-      error: error instanceof Error ? error.message : String(error),
-    };
-  }
-};
-
 const getConfig = (): AppConfig => {
   return {
     playTick: configStore.get("playTick"),
@@ -121,7 +141,6 @@ const syncFloatingWindowAlwaysOnTop = (
   }
 };
 
-// Keep all auxiliary windows in sync with the main always-on-top state.
 const syncAuxWindowsAlwaysOnTop = () => {
   const shouldFloat = mainWindow?.isAlwaysOnTop() ?? false;
   syncFloatingWindowAlwaysOnTop(configWindow, shouldFloat);
@@ -153,8 +172,8 @@ const loadWindow = (
   if (windowName) {
     queryParams.window = windowName;
   }
-  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-    const url = new URL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
+  if (process.env.VITE_DEV_SERVER_URL) {
+    const url = new URL(process.env.VITE_DEV_SERVER_URL);
     Object.entries(queryParams).forEach(([key, value]) => {
       url.searchParams.set(key, value);
     });
@@ -162,7 +181,7 @@ const loadWindow = (
   } else {
     const hasQuery = Object.keys(queryParams).length > 0;
     window.loadFile(
-      path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
+      path.join(__dirname, `../dist/index.html`),
       hasQuery ? { query: queryParams } : undefined,
     );
   }
@@ -185,7 +204,6 @@ const showCloseConfirmationDialog = async (window: BrowserWindow) => {
 };
 
 const createWindow = () => {
-  // Create the browser window.
   mainWindow = new BrowserWindow({
     width: 360,
     height: 500,
@@ -199,10 +217,9 @@ const createWindow = () => {
     },
   });
 
-  // and load the index.html of the app.
   loadWindow(mainWindow);
 
-  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+  if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.webContents.openDevTools();
   }
 
@@ -590,14 +607,8 @@ ipcMain.handle(
   },
 );
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
 app.on("ready", createWindow);
 
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit();
@@ -609,12 +620,7 @@ app.on("before-quit", () => {
 });
 
 app.on("activate", () => {
-  // On OS X it's common to re-create a window in the app when the
-  // dock icon is clicked and there are no other windows open.
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
   }
 });
-
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and import them here.
