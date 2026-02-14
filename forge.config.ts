@@ -10,7 +10,9 @@ import { FuseV1Options, FuseVersion } from "@electron/fuses";
 const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
-    ignore: [/node_modules\/(?!(better-sqlite3|bindings|file-uri-to-path)\/)/],
+    ignore: [
+      /node_modules\/(?!(better-sqlite3|bindings|file-uri-to-path|get-windows)\/)/,
+    ],
   },
   rebuildConfig: {},
   makers: [

@@ -15,7 +15,7 @@ import { History, Settings2 } from "lucide-react";
 import { MODES, formatTime, type Mode } from "@/lib/pomodoro";
 import {
   ACTIVE_APP_POLL_INTERVAL_MS,
-  useActiveAppName,
+  useActiveWindowInfo,
   useAlwaysOnTop,
   useAppConfig,
   useConfigWindowOpener,
@@ -66,13 +66,15 @@ type InternalModelWithEvents = {
 };
 
 type Live2DStageProps = {
-  activeAppName?: string;
+  activeWindowTitle?: string;
+  activeAppOwner?: string;
   showActiveApp?: boolean;
   voiceAudioSignal?: VoiceAudioSignal;
 };
 
 const Live2DStage = ({
-  activeAppName,
+  activeWindowTitle,
+  activeAppOwner,
   showActiveApp,
   voiceAudioSignal,
 }: Live2DStageProps) => {
@@ -366,11 +368,18 @@ const Live2DStage = ({
         </span>
       )}
       {showActiveApp && (
-        <div className="absolute bottom-3 left-3 z-10 flex max-w-[70%] items-center gap-2 rounded-full bg-white/90 px-3 py-1.5 text-[0.65rem] font-semibold text-gray-600 shadow-sm backdrop-blur">
-          <span className="uppercase tracking-[0.2em]">Active app</span>
-          <span className="truncate text-[0.7rem] font-medium text-gray-900">
-            {activeAppName || "Unknown"}
-          </span>
+        <div className="absolute bottom-3 left-3 z-10 flex max-w-[70%] flex-col gap-0.5 rounded-lg bg-white/90 px-3 py-1.5 text-[0.65rem] font-semibold text-gray-600 shadow-sm backdrop-blur">
+          <div className="flex items-center gap-2">
+            <span className="uppercase tracking-[0.2em]">Active app</span>
+            <span className="truncate text-[0.7rem] font-medium text-gray-900">
+              {activeAppOwner || "Unknown"}
+            </span>
+          </div>
+          {activeWindowTitle && (
+            <span className="truncate text-[0.6rem] text-gray-500">
+              {activeWindowTitle}
+            </span>
+          )}
         </div>
       )}
       <div ref={containerRef} className="absolute inset-0" />
@@ -390,8 +399,11 @@ export const TimerWindow = () => {
     setValue: setAlwaysOnTop,
     isAvailable: isAlwaysOnTopAvailable,
   } = useAlwaysOnTop();
-  const { name: activeAppName, isAvailable: isActiveAppAvailable } =
-    useActiveAppName(ACTIVE_APP_POLL_INTERVAL_MS);
+  const {
+    title: activeWindowTitle,
+    ownerName: activeAppOwner,
+    isAvailable: isActiveAppAvailable,
+  } = useActiveWindowInfo(ACTIVE_APP_POLL_INTERVAL_MS);
   const [voiceAudioSignal, setVoiceAudioSignal] = useState<VoiceAudioSignal>({
     audio: null,
     token: 0,
@@ -493,7 +505,11 @@ export const TimerWindow = () => {
   });
 
   const activeAppLabel = isActiveAppAvailable
-    ? normalizeAppName(activeAppName)
+    ? normalizeAppName(
+        activeAppOwner && activeWindowTitle
+          ? `${activeAppOwner}: ${activeWindowTitle}`
+          : activeAppOwner || "Unknown",
+      )
     : "Unavailable";
 
   // Track the active app while focus is running and split into segments on change.
@@ -588,7 +604,8 @@ export const TimerWindow = () => {
 
       <section className="flex items-center justify-center pb-3">
         <Live2DStage
-          activeAppName={activeAppName}
+          activeWindowTitle={activeWindowTitle}
+          activeAppOwner={activeAppOwner}
           showActiveApp={isActiveAppAvailable}
           voiceAudioSignal={voiceAudioSignal}
         />

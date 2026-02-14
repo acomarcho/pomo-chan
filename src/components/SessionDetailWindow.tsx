@@ -132,8 +132,11 @@ export const SessionDetailWindow = () => {
               const percent = total > 0 ? (entry.seconds / total) * 100 : 0;
               return (
                 <div key={entry.appName} className="space-y-1">
-                  <div className="flex items-center justify-between text-xs text-gray-600">
-                    <span className="font-semibold text-gray-900">
+                  <div className="flex items-center justify-between gap-2 text-xs text-gray-600">
+                    <span
+                      className="truncate font-semibold text-gray-900"
+                      title={entry.appName}
+                    >
                       {entry.appName}
                     </span>
                     <span className="tabular-nums text-gray-500">
@@ -170,13 +173,18 @@ export const SessionDetailWindow = () => {
             {segments.map((segment, index) => (
               <div
                 key={`${segment.startedAt}-${segment.endedAt}-${index}`}
-                className="flex flex-wrap items-center justify-between gap-2 py-2"
+                className="flex items-center justify-between gap-2 py-2"
               >
-                <span className="font-medium text-gray-900">
+                <span className="shrink-0 font-medium text-gray-900">
                   {formatTime(segment.startedAt)} -{" "}
                   {formatTime(segment.endedAt)}
                 </span>
-                <span className="text-gray-600">{segment.appName}</span>
+                <span
+                  className="min-w-0 flex-1 truncate text-right text-gray-600"
+                  title={segment.appName}
+                >
+                  {segment.appName}
+                </span>
               </div>
             ))}
           </div>
