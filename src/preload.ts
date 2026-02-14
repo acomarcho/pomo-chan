@@ -52,6 +52,11 @@ const history = {
   openWindow: () => ipcRenderer.invoke("history:open"),
 };
 
+const focusSession = {
+  setActive: (value: boolean) =>
+    ipcRenderer.send("focus-session:set-active", value),
+};
+
 const sessions = {
   add: (value: {
     startedAt: string;
@@ -87,6 +92,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   activeApp,
   config,
   history,
+  focusSession,
   sessionDetails,
   sessions,
 });

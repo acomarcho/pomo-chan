@@ -524,6 +524,18 @@ export const TimerWindow = () => {
   const switchLabel = mode === "focus" ? "Break" : "Focus";
   const canEndSessionEarly = mode === "focus" && !isRunning && showResume;
 
+  useEffect(() => {
+    const focusSessionApi = window.electronAPI?.focusSession;
+    if (!focusSessionApi?.setActive) return;
+
+    const hasActiveSession = mode === "focus" && (isRunning || showResume);
+    focusSessionApi.setActive(hasActiveSession);
+
+    return () => {
+      focusSessionApi.setActive?.(false);
+    };
+  }, [isRunning, mode, showResume]);
+
   const requestEndSessionEarly = useCallback(() => {
     if (!canEndSessionEarly) return;
     setIsEndSessionConfirmOpen(true);
