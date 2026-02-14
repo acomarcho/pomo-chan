@@ -87,6 +87,12 @@ typings/
 
 # Vite
 .vite/
+*.timestamp*.mjs
 
 # Electron-Forge
 out/
+
+# Vite + electron-builder
+dist/
+dist-electron/
+release/

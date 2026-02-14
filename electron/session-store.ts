@@ -1,7 +1,8 @@
-import Database from "better-sqlite3";
 import { app } from "electron";
 import fs from "node:fs";
 import path from "node:path";
+import Database from "better-sqlite3";
+
 import type {
   SessionAppUsage,
   SessionDetail,
@@ -9,7 +10,7 @@ import type {
   SessionList,
   SessionRecord,
   SessionFocusSummary,
-} from "./lib/session-types";
+} from "../src/lib/session-types";
 
 let db: Database.Database | null = null;
 let didApplyFreshStart = false;
