@@ -27,7 +27,7 @@ type AlwaysOnTopAPI = {
 };
 
 type ActiveAppAPI = {
-  get: () => Promise<string>;
+  get: () => Promise<{ title: string; ownerName: string }>;
   debug?: () => Promise<unknown>;
 };
 
@@ -201,11 +201,12 @@ export const useAlwaysOnTop = () => {
 
 export const ACTIVE_APP_POLL_INTERVAL_MS = 1000;
 
-export const useActiveAppName = (
+export const useActiveWindowInfo = (
   pollInterval = ACTIVE_APP_POLL_INTERVAL_MS,
 ) => {
   const api = window.electronAPI?.activeApp;
-  const [name, setName] = useState("");
+  const [title, setTitle] = useState("");
+  const [ownerName, setOwnerName] = useState("");
 
   useEffect(() => {
     if (!api) return;
@@ -213,12 +214,14 @@ export const useActiveAppName = (
 
     const pollActiveApp = async () => {
       try {
-        const nextName = await api.get();
+        const info = await api.get();
         if (!isActive) return;
-        setName(nextName || "Unknown");
+        setTitle(info.title || "");
+        setOwnerName(info.ownerName || "");
       } catch {
         if (isActive) {
-          setName("Unavailable");
+          setTitle("");
+          setOwnerName("");
         }
       }
     };
@@ -232,22 +235,7 @@ export const useActiveAppName = (
     };
   }, [api, pollInterval]);
 
-  useEffect(() => {
-    if (!import.meta.env.DEV) return;
-    console.log("api", api);
-    console.log("api.debug", api?.debug);
-    if (!api?.debug) return;
-    api
-      .debug()
-      .then((info) => {
-        console.log("Active app debug", info);
-      })
-      .catch((err) => {
-        console.error("Active app debug error", err);
-      });
-  }, [api]);
-
-  return { name, isAvailable: Boolean(api) };
+  return { title, ownerName, isAvailable: Boolean(api) };
 };
 
 export const useConfigWindowOpener = () => {

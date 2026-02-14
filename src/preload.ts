@@ -30,7 +30,11 @@ const alwaysOnTop = {
 };
 
 const activeApp = {
-  get: () => ipcRenderer.invoke("active-app:get"),
+  get: () =>
+    ipcRenderer.invoke("active-app:get") as Promise<{
+      title: string;
+      ownerName: string;
+    }>,
   debug: () => ipcRenderer.invoke("active-app:debug"),
 };
 

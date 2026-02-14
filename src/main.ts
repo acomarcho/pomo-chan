@@ -1,10 +1,9 @@
 import { app, BrowserWindow, dialog, ipcMain, screen } from "electron";
-import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { promisify } from "node:util";
 import started from "electron-squirrel-startup";
 import Store from "electron-store";
+import { activeWindow } from "get-windows";
 import {
   addSession,
   closeSessionStore,
@@ -38,11 +37,9 @@ let sessionDetailsWindow: BrowserWindow | null = null;
 let hasActiveFocusSession = false;
 let isBypassingCloseConfirmation = false;
 
-const execFileAsync = promisify(execFile);
-
 type ActiveAppInfo = {
-  name: string;
-  source?: "lsappinfo";
+  title: string;
+  ownerName: string;
   error?: string;
 };
 
@@ -75,45 +72,20 @@ const configStore = new Store<AppConfig>({
   },
 });
 
-const parseLsappinfoName = (output: string) => {
-  const match =
-    output.match(/"LSDisplayName"="([^"]+)"/) ??
-    output.match(/"DisplayName"="([^"]+)"/) ??
-    output.match(/"Name"="([^"]+)"/);
-  return match?.[1]?.trim() ?? "";
-};
-
-const getActiveAppNameFromLsappinfo = async () => {
-  try {
-    const front = await execFileAsync("lsappinfo", ["front"]);
-    const asn = front.stdout.trim().split(/\s+/)[0];
-    if (!asn) return "";
-    const info = await execFileAsync("lsappinfo", [
-      "info",
-      "-only",
-      "name",
-      "-app",
-      asn,
-    ]);
-    return parseLsappinfoName(info.stdout);
-  } catch {
-    return "";
-  }
-};
-
 const getActiveAppInfo = async (): Promise<ActiveAppInfo> => {
-  if (process.platform !== "darwin") {
-    return { name: "" };
-  }
   try {
-    const name = await getActiveAppNameFromLsappinfo();
-    if (name) {
-      return { name, source: "lsappinfo" };
+    const win = await activeWindow();
+    if (!win) {
+      return { title: "", ownerName: "" };
     }
-    return { name: "", error: "lsappinfo returned empty" };
+    return {
+      title: win.title || "",
+      ownerName: win.owner?.name || "",
+    };
   } catch (error) {
     return {
-      name: "",
+      title: "",
+      ownerName: "",
       error: error instanceof Error ? error.message : String(error),
     };
   }
@@ -380,7 +352,7 @@ ipcMain.handle("always-on-top:set", (_event, value: boolean) => {
 
 ipcMain.handle("active-app:get", async () => {
   const info = await getActiveAppInfo();
-  return info.name;
+  return { title: info.title, ownerName: info.ownerName };
 });
 
 ipcMain.handle("active-app:debug", async () => {
