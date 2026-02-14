@@ -90,6 +90,9 @@
         "to": "live2d"
       }
     ],
+    "asarUnpack": [
+      "node_modules/get-windows/**/*"
+    ],
     "mac": {
       "category": "public.app-category.productivity",
       "target": [

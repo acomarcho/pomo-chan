@@ -1,8 +1,53 @@
 import { app, BrowserWindow, dialog, ipcMain, screen } from "electron";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import Store from "electron-store";
-import { activeWindow } from "get-windows";
+
+const execFileAsync = promisify(execFile);
+
+const getWindowsBinary = app.isPackaged
+  ? path.join(
+      process.resourcesPath,
+      "app.asar.unpacked",
+      "node_modules",
+      "get-windows",
+      "main",
+    )
+  : path.join(app.getAppPath(), "node_modules", "get-windows", "main");
+
+const getActiveWindowNative = async (): Promise<{
+  title?: string;
+  owner?: { name?: string };
+} | null> => {
+  try {
+    const { stdout } = await execFileAsync(getWindowsBinary);
+    if (!stdout.trim()) return null;
+    return JSON.parse(stdout);
+  } catch {
+    return null;
+  }
+};
+
+const getActiveAppInfo = async (): Promise<ActiveAppInfo> => {
+  try {
+    const win = await getActiveWindowNative();
+    if (!win) {
+      return { title: "", ownerName: "" };
+    }
+    return {
+      title: win.title || "",
+      ownerName: win.owner?.name || "",
+    };
+  } catch (error) {
+    return {
+      title: "",
+      ownerName: "",
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+};
 import {
   addSession,
   closeSessionStore,
@@ -65,25 +110,6 @@ const configStore = new Store<AppConfig>({
     breakMinutes: DEFAULT_BREAK_MINUTES,
   },
 });
-
-const getActiveAppInfo = async (): Promise<ActiveAppInfo> => {
-  try {
-    const win = await activeWindow();
-    if (!win) {
-      return { title: "", ownerName: "" };
-    }
-    return {
-      title: win.title || "",
-      ownerName: win.owner?.name || "",
-    };
-  } catch (error) {
-    return {
-      title: "",
-      ownerName: "",
-      error: error instanceof Error ? error.message : String(error),
-    };
-  }
-};
 
 const getConfig = (): AppConfig => {
   return {
