@@ -15,27 +15,27 @@ export default defineConfig({
         vite: {
           build: {
             rollupOptions: {
-              external: ["better-sqlite3", "get-windows"],
-            },
-          },
-        },
+              external: ["better-sqlite3", "get-windows"]
+            }
+          }
+        }
       },
       preload: {
-        input: "electron/preload.ts",
+        input: "electron/preload.ts"
       },
-      renderer: {},
+      renderer: {}
     }),
     nodePolyfills({
       include: ["url", "path", "fs", "stream", "events", "util"],
       globals: {
-        process: true,
-      },
-    }),
+        process: true
+      }
+    })
   ],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
-    },
+      "@": path.resolve(__dirname, "./src")
+    }
   },
   base: "./",
   publicDir: "public",
@@ -46,9 +46,9 @@ export default defineConfig({
       output: {
         manualChunks: {
           pixi: ["pixi.js"],
-          live2d: ["pixi-live2d-display"],
-        },
-      },
-    },
-  },
+          live2d: ["pixi-live2d-display"]
+        }
+      }
+    }
+  }
 });

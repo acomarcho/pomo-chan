@@ -8,13 +8,7 @@ import Store from "electron-store";
 const execFileAsync = promisify(execFile);
 
 const getWindowsBinary = app.isPackaged
-  ? path.join(
-      process.resourcesPath,
-      "app.asar.unpacked",
-      "node_modules",
-      "get-windows",
-      "main",
-    )
+  ? path.join(process.resourcesPath, "app.asar.unpacked", "node_modules", "get-windows", "main")
   : path.join(app.getAppPath(), "node_modules", "get-windows", "main");
 
 const getActiveWindowNative = async (): Promise<{
@@ -38,13 +32,13 @@ const getActiveAppInfo = async (): Promise<ActiveAppInfo> => {
     }
     return {
       title: win.title || "",
-      ownerName: win.owner?.name || "",
+      ownerName: win.owner?.name || ""
     };
   } catch (error) {
     return {
       title: "",
       ownerName: "",
-      error: error instanceof Error ? error.message : String(error),
+      error: error instanceof Error ? error.message : String(error)
     };
   }
 };
@@ -57,18 +51,10 @@ import {
   listAllSessions,
   listSessions,
   mergeSessions,
-  replaceSessions,
+  replaceSessions
 } from "./session-store";
-import type {
-  SessionAppUsage,
-  SessionImportMode,
-  SessionRecord,
-} from "../src/lib/session-types";
-import {
-  DEFAULT_BREAK_MINUTES,
-  DEFAULT_FOCUS_MINUTES,
-  clampTimerMinutes,
-} from "../src/lib/pomodoro";
+import type { SessionAppUsage, SessionImportMode, SessionRecord } from "../src/lib/session-types";
+import { DEFAULT_BREAK_MINUTES, DEFAULT_FOCUS_MINUTES, clampTimerMinutes } from "../src/lib/pomodoro";
 
 let mainWindow: BrowserWindow | null = null;
 let configWindow: BrowserWindow | null = null;
@@ -105,11 +91,11 @@ const configStore = new Store<AppConfig>({
     ambientVolumes: {
       fire: 0,
       rain: 0,
-      forest: 0,
+      forest: 0
     },
     focusMinutes: DEFAULT_FOCUS_MINUTES,
-    breakMinutes: DEFAULT_BREAK_MINUTES,
-  },
+    breakMinutes: DEFAULT_BREAK_MINUTES
+  }
 });
 
 const getConfig = (): AppConfig => {
@@ -118,7 +104,7 @@ const getConfig = (): AppConfig => {
     audioLanguage: configStore.get("audioLanguage"),
     ambientVolumes: configStore.get("ambientVolumes"),
     focusMinutes: configStore.get("focusMinutes"),
-    breakMinutes: configStore.get("breakMinutes"),
+    breakMinutes: configStore.get("breakMinutes")
   };
 };
 
@@ -130,10 +116,7 @@ const broadcastConfig = (config: AppConfig) => {
   }
 };
 
-const syncFloatingWindowAlwaysOnTop = (
-  window: BrowserWindow | null,
-  shouldFloat: boolean,
-) => {
+const syncFloatingWindowAlwaysOnTop = (window: BrowserWindow | null, shouldFloat: boolean) => {
   if (!window || window.isDestroyed()) return;
   if (shouldFloat) {
     window.setAlwaysOnTop(true, "modal-panel");
@@ -161,14 +144,9 @@ const getOffsetPositionFromMain = (size: { width: number; height: number }) => {
   return { x, y };
 };
 
-const getDialogParent = () =>
-  historyWindow ?? mainWindow ?? BrowserWindow.getFocusedWindow();
+const getDialogParent = () => historyWindow ?? mainWindow ?? BrowserWindow.getFocusedWindow();
 
-const loadWindow = (
-  window: BrowserWindow,
-  windowName?: string,
-  query: Record<string, string> = {},
-) => {
+const loadWindow = (window: BrowserWindow, windowName?: string, query: Record<string, string> = {}) => {
   const queryParams = { ...query };
   if (windowName) {
     queryParams.window = windowName;
@@ -181,10 +159,7 @@ const loadWindow = (
     window.loadURL(url.toString());
   } else {
     const hasQuery = Object.keys(queryParams).length > 0;
-    window.loadFile(
-      path.join(__dirname, `../dist/index.html`),
-      hasQuery ? { query: queryParams } : undefined,
-    );
+    window.loadFile(path.join(__dirname, `../dist/index.html`), hasQuery ? { query: queryParams } : undefined);
   }
 };
 
@@ -197,8 +172,7 @@ const showCloseConfirmationDialog = async (window: BrowserWindow) => {
     noLink: true,
     title: "Quit Pomo-chan?",
     message: "A focus session is currently running or paused.",
-    detail:
-      "If you quit now, your in-progress focus session will be lost. Do you want to quit anyway?",
+    detail: "If you quit now, your in-progress focus session will be lost. Do you want to quit anyway?"
   });
 
   return response === 1;
@@ -214,8 +188,8 @@ const createWindow = () => {
     maxHeight: 500,
     resizable: false,
     webPreferences: {
-      preload: path.join(__dirname, "preload.js"),
-    },
+      preload: path.join(__dirname, "preload.js")
+    }
   });
 
   loadWindow(mainWindow);
@@ -277,8 +251,8 @@ const createConfigWindow = () => {
     resizable: false,
     title: "Settings",
     webPreferences: {
-      preload: path.join(__dirname, "preload.js"),
-    },
+      preload: path.join(__dirname, "preload.js")
+    }
   });
 
   loadWindow(configWindow, "config");
@@ -307,8 +281,8 @@ const createHistoryWindow = () => {
     resizable: true,
     title: "Session History",
     webPreferences: {
-      preload: path.join(__dirname, "preload.js"),
-    },
+      preload: path.join(__dirname, "preload.js")
+    }
   });
 
   loadWindow(historyWindow, "history");
@@ -326,7 +300,7 @@ const createSessionDetailsWindow = (sessionId: number) => {
   if (sessionDetailsWindow && !sessionDetailsWindow.isDestroyed()) {
     syncAuxWindowsAlwaysOnTop();
     loadWindow(sessionDetailsWindow, "session-details", {
-      sessionId: String(safeId),
+      sessionId: String(safeId)
     });
     sessionDetailsWindow.focus();
     return;
@@ -343,12 +317,12 @@ const createSessionDetailsWindow = (sessionId: number) => {
     resizable: true,
     title: "Session Details",
     webPreferences: {
-      preload: path.join(__dirname, "preload.js"),
-    },
+      preload: path.join(__dirname, "preload.js")
+    }
   });
 
   loadWindow(sessionDetailsWindow, "session-details", {
-    sessionId: String(safeId),
+    sessionId: String(safeId)
   });
   syncAuxWindowsAlwaysOnTop();
 
@@ -391,14 +365,8 @@ ipcMain.handle("config:get", () => {
 
 ipcMain.handle("config:set", (_event, value: Partial<AppConfig>) => {
   const current = getConfig();
-  const nextFocusMinutes =
-    value.focusMinutes === undefined
-      ? current.focusMinutes
-      : clampTimerMinutes(value.focusMinutes);
-  const nextBreakMinutes =
-    value.breakMinutes === undefined
-      ? current.breakMinutes
-      : clampTimerMinutes(value.breakMinutes);
+  const nextFocusMinutes = value.focusMinutes === undefined ? current.focusMinutes : clampTimerMinutes(value.focusMinutes);
+  const nextBreakMinutes = value.breakMinutes === undefined ? current.breakMinutes : clampTimerMinutes(value.breakMinutes);
   const nextConfig = {
     ...current,
     ...value,
@@ -406,8 +374,8 @@ ipcMain.handle("config:set", (_event, value: Partial<AppConfig>) => {
     breakMinutes: nextBreakMinutes,
     ambientVolumes: {
       ...current.ambientVolumes,
-      ...(value.ambientVolumes ?? {}),
-    },
+      ...(value.ambientVolumes ?? {})
+    }
   };
   configStore.set(nextConfig);
   broadcastConfig(nextConfig);
@@ -433,12 +401,9 @@ ipcMain.handle("session:add", (_event, value: SessionRecord) => {
   return addSession(value);
 });
 
-ipcMain.handle(
-  "sessions:list",
-  (_event, value: { page: number; pageSize: number }) => {
-    return listSessions(value.page, value.pageSize);
-  },
-);
+ipcMain.handle("sessions:list", (_event, value: { page: number; pageSize: number }) => {
+  return listSessions(value.page, value.pageSize);
+});
 
 ipcMain.handle("sessions:detail", (_event, value: { id: number }) => {
   return getSessionDetail(value.id);
@@ -458,9 +423,7 @@ ipcMain.handle("sessions:clear", () => {
   }
 });
 
-const extractSessionRecords = (
-  payload: unknown,
-): { records: SessionRecord[]; recognized: boolean; sourceCount: number } => {
+const extractSessionRecords = (payload: unknown): { records: SessionRecord[]; recognized: boolean; sourceCount: number } => {
   if (!payload || typeof payload !== "object") {
     return { records: [], recognized: false, sourceCount: 0 };
   }
@@ -479,15 +442,11 @@ const extractSessionRecords = (
         focusSeconds?: unknown;
         appUsage?: unknown;
       };
-      if (
-        typeof candidate.startedAt !== "string" ||
-        typeof candidate.endedAt !== "string"
-      ) {
+      if (typeof candidate.startedAt !== "string" || typeof candidate.endedAt !== "string") {
         return null;
       }
       const focusSeconds =
-        typeof candidate.focusSeconds === "number" &&
-        Number.isFinite(candidate.focusSeconds)
+        typeof candidate.focusSeconds === "number" && Number.isFinite(candidate.focusSeconds)
           ? candidate.focusSeconds
           : undefined;
       const appUsage = Array.isArray(candidate.appUsage)
@@ -509,7 +468,7 @@ const extractSessionRecords = (
               return {
                 appName: usageCandidate.appName,
                 startedAt: usageCandidate.startedAt,
-                endedAt: usageCandidate.endedAt,
+                endedAt: usageCandidate.endedAt
               } satisfies SessionAppUsage;
             })
             .filter(Boolean) as SessionAppUsage[])
@@ -518,7 +477,7 @@ const extractSessionRecords = (
         startedAt: candidate.startedAt,
         endedAt: candidate.endedAt,
         focusSeconds,
-        appUsage,
+        appUsage
       };
     })
     .filter(Boolean) as SessionRecord[];
@@ -526,7 +485,7 @@ const extractSessionRecords = (
   return {
     records,
     recognized: true,
-    sourceCount: root.sessions.length,
+    sourceCount: root.sessions.length
   };
 };
 
@@ -535,17 +494,12 @@ ipcMain.handle("sessions:export", async () => {
   const now = new Date();
   const padded = (value: number) => String(value).padStart(2, "0");
   const timestamp = `${now.getFullYear()}${padded(now.getMonth() + 1)}${padded(
-    now.getDate(),
-  )}-${padded(now.getHours())}${padded(now.getMinutes())}${padded(
-    now.getSeconds(),
-  )}`;
+    now.getDate()
+  )}-${padded(now.getHours())}${padded(now.getMinutes())}${padded(now.getSeconds())}`;
   const { canceled, filePath } = await dialog.showSaveDialog(parent, {
     title: "Export sessions",
-    defaultPath: path.join(
-      app.getPath("downloads"),
-      `pomo-chan-sessions-${timestamp}.json`,
-    ),
-    filters: [{ name: "JSON", extensions: ["json"] }],
+    defaultPath: path.join(app.getPath("downloads"), `pomo-chan-sessions-${timestamp}.json`),
+    filters: [{ name: "JSON", extensions: ["json"] }]
   });
   if (canceled || !filePath) {
     return { ok: false, reason: "canceled" } as const;
@@ -555,7 +509,7 @@ ipcMain.handle("sessions:export", async () => {
   const payload = {
     version: 2,
     exportedAt: new Date().toISOString(),
-    sessions,
+    sessions
   };
 
   try {
@@ -567,56 +521,53 @@ ipcMain.handle("sessions:export", async () => {
   }
 });
 
-ipcMain.handle(
-  "sessions:import",
-  async (_event, options?: { mode?: SessionImportMode }) => {
-    const parent = getDialogParent();
-    const { canceled, filePaths } = await dialog.showOpenDialog(parent, {
-      title: "Import sessions",
-      filters: [{ name: "JSON", extensions: ["json"] }],
-      properties: ["openFile"],
-    });
-    if (canceled || filePaths.length === 0) {
-      return { ok: false, reason: "canceled" } as const;
-    }
+ipcMain.handle("sessions:import", async (_event, options?: { mode?: SessionImportMode }) => {
+  const parent = getDialogParent();
+  const { canceled, filePaths } = await dialog.showOpenDialog(parent, {
+    title: "Import sessions",
+    filters: [{ name: "JSON", extensions: ["json"] }],
+    properties: ["openFile"]
+  });
+  if (canceled || filePaths.length === 0) {
+    return { ok: false, reason: "canceled" } as const;
+  }
 
-    let raw = "";
-    try {
-      raw = await fs.readFile(filePaths[0], "utf8");
-    } catch (error) {
-      console.error("Failed to read sessions file", error);
-      return { ok: false, reason: "read-failed" } as const;
-    }
+  let raw = "";
+  try {
+    raw = await fs.readFile(filePaths[0], "utf8");
+  } catch (error) {
+    console.error("Failed to read sessions file", error);
+    return { ok: false, reason: "read-failed" } as const;
+  }
 
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(raw);
-    } catch (error) {
-      console.error("Failed to parse sessions file", error);
-      return { ok: false, reason: "invalid-format" } as const;
-    }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (error) {
+    console.error("Failed to parse sessions file", error);
+    return { ok: false, reason: "invalid-format" } as const;
+  }
 
-    const { records, recognized, sourceCount } = extractSessionRecords(parsed);
-    if (!recognized || (sourceCount > 0 && records.length === 0)) {
-      return { ok: false, reason: "invalid-format" } as const;
-    }
+  const { records, recognized, sourceCount } = extractSessionRecords(parsed);
+  if (!recognized || (sourceCount > 0 && records.length === 0)) {
+    return { ok: false, reason: "invalid-format" } as const;
+  }
 
-    const mode = options?.mode === "overwrite" ? "overwrite" : "merge";
-    try {
-      let count = 0;
-      if (mode === "overwrite") {
-        replaceSessions(records);
-        count = records.length;
-      } else {
-        count = mergeSessions(records);
-      }
-      return { ok: true, count } as const;
-    } catch (error) {
-      console.error("Failed to import sessions", error);
-      return { ok: false, reason: "write-failed" } as const;
+  const mode = options?.mode === "overwrite" ? "overwrite" : "merge";
+  try {
+    let count = 0;
+    if (mode === "overwrite") {
+      replaceSessions(records);
+      count = records.length;
+    } else {
+      count = mergeSessions(records);
     }
-  },
-);
+    return { ok: true, count } as const;
+  } catch (error) {
+    console.error("Failed to import sessions", error);
+    return { ok: false, reason: "write-failed" } as const;
+  }
+});
 
 app.on("ready", createWindow);
 

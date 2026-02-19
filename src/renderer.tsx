@@ -27,6 +27,6 @@ if (root) {
     <React.StrictMode>
       <App />
       <Toaster />
-    </React.StrictMode>,
+    </React.StrictMode>
   );
 }
