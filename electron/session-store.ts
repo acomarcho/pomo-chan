@@ -23,6 +23,14 @@ const ensureFocusSecondsColumn = (database: Database.Database) => {
   }
 };
 
+const ensureWindowTitleColumn = (database: Database.Database) => {
+  const columns = database.prepare("PRAGMA table_info(session_app_usage)").all() as Array<{ name: string }>;
+  const hasWindowTitle = columns.some((column) => column.name === "window_title");
+  if (!hasWindowTitle) {
+    database.exec("ALTER TABLE session_app_usage ADD COLUMN window_title TEXT");
+  }
+};
+
 const calculateFocusSeconds = (segments: SessionAppUsage[]) => {
   return segments.reduce((total, segment) => {
     const start = Date.parse(segment.startedAt);
@@ -62,11 +70,13 @@ const ensureDb = () => {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       session_id INTEGER NOT NULL,
       app_name TEXT NOT NULL,
+      window_title TEXT,
       started_at TEXT NOT NULL,
       ended_at TEXT NOT NULL,
       FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE
     );
   `);
+  ensureWindowTitleColumn(db);
   db.exec("CREATE INDEX IF NOT EXISTS session_app_usage_session_id ON session_app_usage(session_id)");
   return db;
 };
@@ -103,11 +113,11 @@ export const addSession = (record: SessionRecord) => {
   const sessionId = Number(info.lastInsertRowid);
   if (record.appUsage && record.appUsage.length > 0) {
     const insertUsage = database.prepare(
-      "INSERT INTO session_app_usage (session_id, app_name, started_at, ended_at) VALUES (?, ?, ?, ?)"
+      "INSERT INTO session_app_usage (session_id, app_name, window_title, started_at, ended_at) VALUES (?, ?, ?, ?, ?)"
     );
     const insertMany = database.transaction((segments: SessionAppUsage[]) => {
       for (const segment of segments) {
-        insertUsage.run(sessionId, segment.appName, segment.startedAt, segment.endedAt);
+        insertUsage.run(sessionId, segment.appName, segment.windowTitle ?? null, segment.startedAt, segment.endedAt);
       }
     });
     insertMany(record.appUsage);
@@ -170,11 +180,12 @@ export const listAllSessions = (): SessionRecord[] => {
   }>;
   const usageRows = database
     .prepare(
-      "SELECT session_id AS sessionId, app_name AS appName, started_at AS startedAt, ended_at AS endedAt FROM session_app_usage ORDER BY started_at ASC"
+      "SELECT session_id AS sessionId, app_name AS appName, window_title AS windowTitle, started_at AS startedAt, ended_at AS endedAt FROM session_app_usage ORDER BY started_at ASC"
     )
     .all() as Array<{
     sessionId: number;
     appName: string;
+    windowTitle: string | null;
     startedAt: string;
     endedAt: string;
   }>;
@@ -183,6 +194,7 @@ export const listAllSessions = (): SessionRecord[] => {
     const list = usageBySession.get(row.sessionId);
     const segment = {
       appName: row.appName,
+      windowTitle: row.windowTitle,
       startedAt: row.startedAt,
       endedAt: row.endedAt
     };
@@ -219,7 +231,7 @@ export const replaceSessions = (entries: SessionRecord[]) => {
   const database = ensureDb();
   const insertSession = database.prepare("INSERT INTO sessions (started_at, ended_at, focus_seconds) VALUES (?, ?, ?)");
   const insertUsage = database.prepare(
-    "INSERT INTO session_app_usage (session_id, app_name, started_at, ended_at) VALUES (?, ?, ?, ?)"
+    "INSERT INTO session_app_usage (session_id, app_name, window_title, started_at, ended_at) VALUES (?, ?, ?, ?, ?)"
   );
   const replace = database.transaction((records: SessionRecord[]) => {
     database.exec("DELETE FROM session_app_usage");
@@ -232,7 +244,7 @@ export const replaceSessions = (entries: SessionRecord[]) => {
       const sessionId = Number(info.lastInsertRowid);
       if (record.appUsage && record.appUsage.length > 0) {
         for (const segment of record.appUsage) {
-          insertUsage.run(sessionId, segment.appName, segment.startedAt, segment.endedAt);
+          insertUsage.run(sessionId, segment.appName, segment.windowTitle ?? null, segment.startedAt, segment.endedAt);
         }
       }
     }
@@ -270,7 +282,7 @@ export const mergeSessions = (entries: SessionRecord[]) => {
   const sortedEntries = sortByStartedAt(uniqueEntries);
   const insertSession = database.prepare("INSERT INTO sessions (started_at, ended_at, focus_seconds) VALUES (?, ?, ?)");
   const insertUsage = database.prepare(
-    "INSERT INTO session_app_usage (session_id, app_name, started_at, ended_at) VALUES (?, ?, ?, ?)"
+    "INSERT INTO session_app_usage (session_id, app_name, window_title, started_at, ended_at) VALUES (?, ?, ?, ?, ?)"
   );
   const insertMany = database.transaction((records: SessionRecord[]) => {
     for (const record of records) {
@@ -279,7 +291,7 @@ export const mergeSessions = (entries: SessionRecord[]) => {
       const sessionId = Number(info.lastInsertRowid);
       if (record.appUsage && record.appUsage.length > 0) {
         for (const segment of record.appUsage) {
-          insertUsage.run(sessionId, segment.appName, segment.startedAt, segment.endedAt);
+          insertUsage.run(sessionId, segment.appName, segment.windowTitle ?? null, segment.startedAt, segment.endedAt);
         }
       }
     }
@@ -303,7 +315,7 @@ export const getSessionDetail = (sessionId: number): SessionDetail | null => {
   if (!session) return null;
   const usage = database
     .prepare(
-      "SELECT app_name AS appName, started_at AS startedAt, ended_at AS endedAt FROM session_app_usage WHERE session_id = ? ORDER BY started_at ASC"
+      "SELECT app_name AS appName, window_title AS windowTitle, started_at AS startedAt, ended_at AS endedAt FROM session_app_usage WHERE session_id = ? ORDER BY started_at ASC"
     )
     .all(sessionId) as SessionAppUsage[];
   return {

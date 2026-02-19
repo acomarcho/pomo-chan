@@ -29,6 +29,10 @@ const LIP_SYNC_ATTACK = 0.6;
 const LIP_SYNC_RELEASE = 0.3;
 
 const normalizeAppName = (value: string) => value.trim() || "Unknown";
+const normalizeWindowTitle = (value: string) => {
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
 
 const calculateFocusSeconds = (segments: SessionAppUsage[]) => {
   return segments.reduce((total, segment) => {
@@ -358,6 +362,7 @@ export const TimerWindow = () => {
   const usageSegmentsRef = useRef<SessionAppUsage[]>([]);
   const activeSegmentRef = useRef<{
     appName: string;
+    windowTitle: string | null;
     startedAt: string;
   } | null>(null);
   const prevRunningRef = useRef(false);
@@ -374,20 +379,22 @@ export const TimerWindow = () => {
     }
     usageSegmentsRef.current.push({
       appName: active.appName,
+      windowTitle: active.windowTitle,
       startedAt: active.startedAt,
       endedAt: endedAt.toISOString()
     });
   }, []);
 
   const switchSegment = useCallback(
-    (appName: string, at: Date) => {
+    (appName: string, windowTitle: string | null, at: Date) => {
       const active = activeSegmentRef.current;
-      if (active?.appName === appName) return;
+      if (active?.appName === appName && active.windowTitle === windowTitle) return;
       if (active) {
         closeActiveSegment(at);
       }
       activeSegmentRef.current = {
         appName,
+        windowTitle,
         startedAt: at.toISOString()
       };
     },
@@ -444,19 +451,15 @@ export const TimerWindow = () => {
     onFocusComplete: handleFocusComplete
   });
 
-  const activeAppLabel = isActiveAppAvailable
-    ? normalizeAppName(
-        activeAppOwner && activeWindowTitle ? `${activeAppOwner}: ${activeWindowTitle}` : activeAppOwner || "Unknown"
-      )
-    : "Unavailable";
+  const activeAppName = isActiveAppAvailable ? normalizeAppName(activeAppOwner || "Unknown") : "Unavailable";
+  const activeWindowLabel = isActiveAppAvailable ? normalizeWindowTitle(activeWindowTitle) : null;
 
-  // Track the active app while focus is running and split into segments on change.
+  // Track the active app/window while focus is running and split into segments on change.
   useEffect(() => {
-    const normalized = normalizeAppName(activeAppLabel);
     if (mode === "focus" && isRunning) {
-      switchSegment(normalized, new Date());
+      switchSegment(activeAppName, activeWindowLabel, new Date());
     }
-  }, [activeAppLabel, isRunning, mode, switchSegment]);
+  }, [activeAppName, activeWindowLabel, isRunning, mode, switchSegment]);
 
   // Stop or reset usage segments when focus pauses or switches away.
   useEffect(() => {

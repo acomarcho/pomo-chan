@@ -1,5 +1,6 @@
 export type SessionAppUsage = {
   appName: string;
+  windowTitle?: string | null;
   startedAt: string;
   endedAt: string;
 };

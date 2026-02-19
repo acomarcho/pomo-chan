@@ -455,6 +455,7 @@ const extractSessionRecords = (payload: unknown): { records: SessionRecord[]; re
               if (!segment || typeof segment !== "object") return null;
               const usageCandidate = segment as {
                 appName?: unknown;
+                windowTitle?: unknown;
                 startedAt?: unknown;
                 endedAt?: unknown;
               };
@@ -467,6 +468,10 @@ const extractSessionRecords = (payload: unknown): { records: SessionRecord[]; re
               }
               return {
                 appName: usageCandidate.appName,
+                windowTitle:
+                  typeof usageCandidate.windowTitle === "string" && usageCandidate.windowTitle.trim().length > 0
+                    ? usageCandidate.windowTitle
+                    : null,
                 startedAt: usageCandidate.startedAt,
                 endedAt: usageCandidate.endedAt
               } satisfies SessionAppUsage;
