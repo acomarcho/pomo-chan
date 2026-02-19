@@ -5,19 +5,14 @@ import type {
   SessionFocusSummary,
   SessionImportMode,
   SessionList,
-  SessionTransferResult,
+  SessionTransferResult
 } from "@/lib/session-types";
 
 export const useSessionRecorder = () => {
   const api = window.electronAPI?.sessions;
 
   const addSession = useCallback(
-    async (value: {
-      startedAt: string;
-      endedAt: string;
-      focusSeconds?: number | null;
-      appUsage?: SessionAppUsage[];
-    }) => {
+    async (value: { startedAt: string; endedAt: string; focusSeconds?: number | null; appUsage?: SessionAppUsage[] }) => {
       if (!api?.add) return;
       try {
         await api.add(value);
@@ -25,7 +20,7 @@ export const useSessionRecorder = () => {
         console.error("Failed to save session", error);
       }
     },
-    [api],
+    [api]
   );
 
   return { addSession, isAvailable: Boolean(api?.add) };
@@ -69,8 +64,13 @@ export const useSessionHistory = (page: number, pageSize: number) => {
       if (!api?.import) return null;
       return api.import({ mode }) as Promise<SessionTransferResult>;
     },
-    [api],
+    [api]
   );
+
+  const clearSessions = useCallback(async () => {
+    if (!api?.clear) return null;
+    return api.clear() as Promise<SessionTransferResult>;
+  }, [api]);
 
   return {
     data,
@@ -79,8 +79,10 @@ export const useSessionHistory = (page: number, pageSize: number) => {
     refresh,
     isAvailable: Boolean(api?.list),
     isTransferAvailable: Boolean(api?.export && api?.import),
+    isClearAvailable: Boolean(api?.clear),
     exportSessions,
     importSessions,
+    clearSessions
   };
 };
 
@@ -122,7 +124,7 @@ export const useSessionDetail = (sessionId?: number | null) => {
     isLoading,
     error,
     refresh,
-    isAvailable: Boolean(api?.detail),
+    isAvailable: Boolean(api?.detail)
   };
 };
 
@@ -159,6 +161,6 @@ export const useSessionSummary = () => {
     isLoading,
     error,
     refresh,
-    isAvailable: Boolean(api?.summary),
+    isAvailable: Boolean(api?.summary)
   };
 };

@@ -50,6 +50,7 @@ const getActiveAppInfo = async (): Promise<ActiveAppInfo> => {
 };
 import {
   addSession,
+  clearSessions,
   closeSessionStore,
   getSessionFocusSummary,
   getSessionDetail,
@@ -445,6 +446,16 @@ ipcMain.handle("sessions:detail", (_event, value: { id: number }) => {
 
 ipcMain.handle("sessions:summary", () => {
   return getSessionFocusSummary();
+});
+
+ipcMain.handle("sessions:clear", () => {
+  try {
+    const count = clearSessions();
+    return { ok: true, count } as const;
+  } catch (error) {
+    console.error("Failed to clear sessions", error);
+    return { ok: false, reason: "write-failed" } as const;
+  }
 });
 
 const extractSessionRecords = (

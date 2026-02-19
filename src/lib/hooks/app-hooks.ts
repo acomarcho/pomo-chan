@@ -1,16 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { DEFAULT_AMBIENT_VOLUMES, type AmbientSound } from "@/lib/ambient";
-import {
-  DEFAULT_BREAK_MINUTES,
-  DEFAULT_FOCUS_MINUTES,
-  clampTimerMinutes,
-} from "@/lib/pomodoro";
+import { DEFAULT_BREAK_MINUTES, DEFAULT_FOCUS_MINUTES, clampTimerMinutes } from "@/lib/pomodoro";
 import type {
   SessionDetail,
   SessionFocusSummary,
   SessionImportMode,
   SessionList,
-  SessionTransferResult,
+  SessionTransferResult
 } from "@/lib/session-types";
 
 export type AppConfig = {
@@ -49,9 +45,8 @@ type SessionAPI = {
   detail?: (value: { id: number }) => Promise<SessionDetail | null>;
   summary?: () => Promise<SessionFocusSummary>;
   export?: () => Promise<SessionTransferResult>;
-  import?: (value: {
-    mode: SessionImportMode;
-  }) => Promise<SessionTransferResult>;
+  import?: (value: { mode: SessionImportMode }) => Promise<SessionTransferResult>;
+  clear?: () => Promise<SessionTransferResult>;
 };
 
 type HistoryAPI = {
@@ -85,14 +80,12 @@ const DEFAULT_CONFIG: AppConfig = {
   audioLanguage: "jp",
   ambientVolumes: { ...DEFAULT_AMBIENT_VOLUMES },
   focusMinutes: DEFAULT_FOCUS_MINUTES,
-  breakMinutes: DEFAULT_BREAK_MINUTES,
+  breakMinutes: DEFAULT_BREAK_MINUTES
 };
 
-const mergeAmbientVolumes = (
-  volumes?: Partial<Record<AmbientSound, number>>,
-) => ({
+const mergeAmbientVolumes = (volumes?: Partial<Record<AmbientSound, number>>) => ({
   ...DEFAULT_AMBIENT_VOLUMES,
-  ...(volumes ?? {}),
+  ...(volumes ?? {})
 });
 
 const normalizeConfig = (value?: Partial<AppConfig>): AppConfig => ({
@@ -100,7 +93,7 @@ const normalizeConfig = (value?: Partial<AppConfig>): AppConfig => ({
   ...value,
   focusMinutes: clampTimerMinutes(value?.focusMinutes ?? DEFAULT_FOCUS_MINUTES),
   breakMinutes: clampTimerMinutes(value?.breakMinutes ?? DEFAULT_BREAK_MINUTES),
-  ambientVolumes: mergeAmbientVolumes(value?.ambientVolumes),
+  ambientVolumes: mergeAmbientVolumes(value?.ambientVolumes)
 });
 
 export const useAppConfig = () => {
@@ -152,7 +145,7 @@ export const useAppConfig = () => {
         console.error("Failed to update config", error);
       });
     },
-    [api],
+    [api]
   );
 
   return { config, updateConfig, hasApi: Boolean(api) };
@@ -193,7 +186,7 @@ export const useAlwaysOnTop = () => {
         setValue(previous);
       }
     },
-    [api, value],
+    [api, value]
   );
 
   return { value, setValue: setAlwaysOnTop, isAvailable: Boolean(api) };
@@ -201,9 +194,7 @@ export const useAlwaysOnTop = () => {
 
 export const ACTIVE_APP_POLL_INTERVAL_MS = 1000;
 
-export const useActiveWindowInfo = (
-  pollInterval = ACTIVE_APP_POLL_INTERVAL_MS,
-) => {
+export const useActiveWindowInfo = (pollInterval = ACTIVE_APP_POLL_INTERVAL_MS) => {
   const api = window.electronAPI?.activeApp;
   const [title, setTitle] = useState("");
   const [ownerName, setOwnerName] = useState("");
@@ -283,7 +274,7 @@ export const useSessionDetailsWindowOpener = () => {
         console.error("Failed to open session details window", error);
       }
     },
-    [api],
+    [api]
   );
 
   return { openSessionDetailsWindow, isAvailable };

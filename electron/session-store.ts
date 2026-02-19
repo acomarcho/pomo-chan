@@ -282,6 +282,23 @@ export const replaceSessions = (entries: SessionRecord[]) => {
   replace(entries);
 };
 
+export const clearSessions = () => {
+  const database = ensureDb();
+  const totalRow = database
+    .prepare("SELECT COUNT(*) AS count FROM sessions")
+    .get() as { count: number };
+  const clear = database.transaction(() => {
+    database.exec("DELETE FROM session_app_usage");
+    database.exec("DELETE FROM sessions");
+    database.exec("DELETE FROM sqlite_sequence WHERE name = 'sessions'");
+    database.exec(
+      "DELETE FROM sqlite_sequence WHERE name = 'session_app_usage'",
+    );
+  });
+  clear();
+  return Number(totalRow.count);
+};
+
 export const mergeSessions = (entries: SessionRecord[]) => {
   const database = ensureDb();
   const existingKeys = new Set(

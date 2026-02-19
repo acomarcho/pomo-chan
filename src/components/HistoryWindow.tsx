@@ -1,29 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableFooter,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useSessionDetailsWindowOpener } from "@/lib/hooks/app-hooks";
-import {
-  useSessionHistory,
-  useSessionSummary,
-} from "@/lib/hooks/session-hooks";
+import { useSessionHistory, useSessionSummary } from "@/lib/hooks/session-hooks";
 import type { SessionImportMode } from "@/lib/session-types";
 
 const PAGE_SIZE = 10;
@@ -32,7 +14,7 @@ const timeFormatter = new Intl.DateTimeFormat("en-US", {
   hour: "2-digit",
   minute: "2-digit",
   second: "2-digit",
-  hour12: true,
+  hour12: true
 });
 
 const formatDatePart = (date: Date) => {
@@ -42,11 +24,7 @@ const formatDatePart = (date: Date) => {
   return `${year}/${month}/${day}`;
 };
 
-const getDurationMinutes = (
-  startedAt: string,
-  endedAt: string,
-  focusSeconds?: number | null,
-) => {
+const getDurationMinutes = (startedAt: string, endedAt: string, focusSeconds?: number | null) => {
   if (typeof focusSeconds === "number" && Number.isFinite(focusSeconds)) {
     return Math.max(0, Math.round(focusSeconds / 60));
   }
@@ -57,11 +35,7 @@ const getDurationMinutes = (
   return Math.max(0, minutes);
 };
 
-const formatSessionTimeRange = (
-  startedAt: string,
-  endedAt: string,
-  focusSeconds?: number | null,
-) => {
+const formatSessionTimeRange = (startedAt: string, endedAt: string, focusSeconds?: number | null) => {
   const start = new Date(startedAt);
   const end = new Date(endedAt);
 
@@ -70,12 +44,9 @@ const formatSessionTimeRange = (
   }
 
   const sameDay =
-    start.getFullYear() === end.getFullYear() &&
-    start.getMonth() === end.getMonth() &&
-    start.getDate() === end.getDate();
+    start.getFullYear() === end.getFullYear() && start.getMonth() === end.getMonth() && start.getDate() === end.getDate();
   const durationMinutes = getDurationMinutes(startedAt, endedAt, focusSeconds);
-  const durationSuffix =
-    typeof durationMinutes === "number" ? ` (${durationMinutes} mins)` : "";
+  const durationSuffix = typeof durationMinutes === "number" ? ` (${durationMinutes} mins)` : "";
   const startLabel = `${formatDatePart(start)} ${timeFormatter.format(start)}`;
 
   if (sameDay) {
@@ -91,7 +62,7 @@ const formatFocusDuration = (seconds: number) => {
   const minutes = totalMinutes % 60;
   return {
     hours: String(hours).padStart(2, "0"),
-    minutes: String(minutes).padStart(2, "0"),
+    minutes: String(minutes).padStart(2, "0")
   };
 };
 
@@ -104,20 +75,22 @@ export const HistoryWindow = () => {
     refresh,
     isAvailable,
     isTransferAvailable,
+    isClearAvailable,
     exportSessions,
     importSessions,
+    clearSessions
   } = useSessionHistory(page, PAGE_SIZE);
   const {
     summary,
     isLoading: isSummaryLoading,
     error: summaryError,
     refresh: refreshSummary,
-    isAvailable: isSummaryAvailable,
+    isAvailable: isSummaryAvailable
   } = useSessionSummary();
-  const { openSessionDetailsWindow, isAvailable: isDetailsAvailable } =
-    useSessionDetailsWindowOpener();
+  const { openSessionDetailsWindow, isAvailable: isDetailsAvailable } = useSessionDetailsWindowOpener();
   const [isTransferring, setIsTransferring] = useState(false);
   const [showImportConfirm, setShowImportConfirm] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [importMode, setImportMode] = useState<SessionImportMode>("merge");
 
   const totalPages = useMemo(() => {
@@ -135,9 +108,9 @@ export const HistoryWindow = () => {
   const canNext = page < totalPages;
   const showEmpty = !isLoading && data.items.length === 0;
   const canTransfer = isTransferAvailable && !isTransferring;
+  const canClear = isClearAvailable && !isTransferring;
   const firstResultIndex = data.total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
-  const lastResultIndex =
-    data.total === 0 ? 0 : Math.min(page * PAGE_SIZE, data.total);
+  const lastResultIndex = data.total === 0 ? 0 : Math.min(page * PAGE_SIZE, data.total);
   const pageItems = useMemo(() => {
     if (totalPages <= 7) {
       return Array.from({ length: totalPages }, (_, index) => index + 1);
@@ -166,7 +139,7 @@ export const HistoryWindow = () => {
   const summarySnapshot = summary ?? {
     todaySeconds: 0,
     weekSeconds: 0,
-    monthSeconds: 0,
+    monthSeconds: 0
   };
   const summaryCards = [
     {
@@ -174,22 +147,22 @@ export const HistoryWindow = () => {
       label: "focused today",
       seconds: summarySnapshot.todaySeconds,
       gradient: "from-amber-50/90 via-white to-amber-100/70",
-      accent: "bg-amber-400/80",
+      accent: "bg-amber-400/80"
     },
     {
       id: "week",
       label: "focused in 7 days",
       seconds: summarySnapshot.weekSeconds,
       gradient: "from-sky-50/90 via-white to-sky-100/70",
-      accent: "bg-sky-400/80",
+      accent: "bg-sky-400/80"
     },
     {
       id: "month",
       label: "focused last 30 days",
       seconds: summarySnapshot.monthSeconds,
       gradient: "from-emerald-50/90 via-white to-emerald-100/70",
-      accent: "bg-emerald-400/80",
-    },
+      accent: "bg-emerald-400/80"
+    }
   ];
 
   const handleExport = async () => {
@@ -243,6 +216,41 @@ export const HistoryWindow = () => {
     void runImport(importMode);
   };
 
+  const runClear = async () => {
+    setIsTransferring(true);
+    try {
+      const result = await clearSessions();
+      if (!result || !result.ok) {
+        toast.error("Failed to clear sessions.");
+        return;
+      }
+      if ((result.count ?? 0) > 0) {
+        toast.success(`Cleared ${result.count ?? 0} sessions.`);
+      } else {
+        toast.success("Session history is already empty.");
+      }
+      void refreshSummary();
+      if (page === 1) {
+        void refresh();
+      } else {
+        setPage(1);
+      }
+    } catch {
+      toast.error("Failed to clear sessions.");
+    } finally {
+      setIsTransferring(false);
+    }
+  };
+
+  const handleClear = () => {
+    setShowClearConfirm(true);
+  };
+
+  const handleConfirmClear = () => {
+    setShowClearConfirm(false);
+    void runClear();
+  };
+
   const handleRefresh = () => {
     void refresh();
     void refreshSummary();
@@ -251,37 +259,24 @@ export const HistoryWindow = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-white via-white to-slate-50 px-4 py-6 text-gray-900">
       <header className="space-y-2 pb-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-500">
-          History
-        </p>
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-500">History</p>
         <h1 className="text-2xl font-semibold">Completed sessions</h1>
-        <p className="text-sm text-gray-500">
-          Only completed focus sessions are saved.
-        </p>
+        <p className="text-sm text-gray-500">Only completed focus sessions are saved.</p>
         <div className="flex flex-wrap items-center gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleExport}
-            disabled={!canTransfer}
-          >
+          <Button size="sm" variant="outline" onClick={handleExport} disabled={!canTransfer}>
             Export
           </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleImport}
-            disabled={!canTransfer}
-          >
+          <Button size="sm" variant="outline" onClick={handleImport} disabled={!canTransfer}>
             Import
+          </Button>
+          <Button size="sm" variant="destructive" onClick={handleClear} disabled={!canClear}>
+            Clear
           </Button>
         </div>
       </header>
 
       <section className="space-y-4">
-        <div
-          className={`grid grid-cols-3 gap-3 ${isSummaryLoading ? "opacity-70" : ""}`}
-        >
+        <div className={`grid grid-cols-3 gap-3 ${isSummaryLoading ? "opacity-70" : ""}`}>
           {summaryCards.map((card) => {
             const time = formatFocusDuration(card.seconds);
             return (
@@ -291,99 +286,60 @@ export const HistoryWindow = () => {
               >
                 <div className="flex items-center justify-between">
                   <span className={`h-1.5 w-10 rounded-full ${card.accent}`} />
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-500">
-                    Focus
-                  </span>
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-500">Focus</span>
                 </div>
                 <div className="mt-3 flex flex-wrap items-baseline gap-2 text-slate-900">
-                  <span className="text-2xl font-semibold tabular-nums">
-                    {time.hours}
-                  </span>
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-                    hrs
-                  </span>
-                  <span className="text-2xl font-semibold tabular-nums">
-                    {time.minutes}
-                  </span>
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-                    mins
-                  </span>
+                  <span className="text-2xl font-semibold tabular-nums">{time.hours}</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">hrs</span>
+                  <span className="text-2xl font-semibold tabular-nums">{time.minutes}</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">mins</span>
                 </div>
-                <p className="mt-2 text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
-                  {card.label}
-                </p>
+                <p className="mt-2 text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">{card.label}</p>
               </div>
             );
           })}
         </div>
-        {!isSummaryAvailable && (
-          <p className="text-xs text-slate-500">
-            Summary stats are unavailable in this window.
-          </p>
-        )}
+        {!isSummaryAvailable && <p className="text-xs text-slate-500">Summary stats are unavailable in this window.</p>}
         {summaryError && <p className="text-xs text-red-500">{summaryError}</p>}
         <Dialog open={showImportConfirm} onOpenChange={setShowImportConfirm}>
           <DialogContent className="text-left">
             <DialogHeader>
               <DialogTitle>Import sessions</DialogTitle>
-              <DialogDescription>
-                Choose how the imported sessions should be applied.
-              </DialogDescription>
+              <DialogDescription>Choose how the imported sessions should be applied.</DialogDescription>
             </DialogHeader>
             <div className="space-y-3">
               <RadioGroup
                 value={importMode}
-                onValueChange={(value) =>
-                  setImportMode(value as SessionImportMode)
-                }
+                onValueChange={(value) => setImportMode(value as SessionImportMode)}
                 className="gap-3"
               >
                 <label
                   htmlFor="import-merge"
                   className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 px-3 py-3 text-sm transition hover:border-slate-300"
                 >
-                  <RadioGroupItem
-                    id="import-merge"
-                    value="merge"
-                    className="mt-0.5"
-                  />
+                  <RadioGroupItem id="import-merge" value="merge" className="mt-0.5" />
                   <div className="space-y-1">
                     <p className="font-semibold text-slate-900">Merge</p>
-                    <p className="text-xs text-slate-500">
-                      Keep existing sessions and add entries from the import.
-                    </p>
+                    <p className="text-xs text-slate-500">Keep existing sessions and add entries from the import.</p>
                   </div>
                 </label>
                 <label
                   htmlFor="import-overwrite"
                   className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 px-3 py-3 text-sm transition hover:border-slate-300"
                 >
-                  <RadioGroupItem
-                    id="import-overwrite"
-                    value="overwrite"
-                    className="mt-0.5"
-                  />
+                  <RadioGroupItem id="import-overwrite" value="overwrite" className="mt-0.5" />
                   <div className="space-y-1">
                     <p className="font-semibold text-slate-900">Overwrite</p>
-                    <p className="text-xs text-slate-500">
-                      Replace all current sessions with the imported file.
-                    </p>
+                    <p className="text-xs text-slate-500">Replace all current sessions with the imported file.</p>
                   </div>
                 </label>
               </RadioGroup>
               {importMode === "overwrite" && (
-                <p className="text-xs font-semibold text-red-500">
-                  Overwrite will remove all existing sessions on this device.
-                </p>
+                <p className="text-xs font-semibold text-red-500">Overwrite will remove all existing sessions on this device.</p>
               )}
             </div>
             <DialogFooter>
-              <Button
-                variant="outline"
-                type="button"
-                onClick={() => setShowImportConfirm(false)}
-                disabled={isTransferring}
-              >
+              <Button variant="outline" type="button" onClick={() => setShowImportConfirm(false)} disabled={isTransferring}>
                 Cancel
               </Button>
               <Button
@@ -397,6 +353,24 @@ export const HistoryWindow = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        <Dialog open={showClearConfirm} onOpenChange={setShowClearConfirm}>
+          <DialogContent className="text-left">
+            <DialogHeader>
+              <DialogTitle>Clear all sessions?</DialogTitle>
+              <DialogDescription>
+                This will permanently delete all saved sessions from this device. This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" type="button" onClick={() => setShowClearConfirm(false)} disabled={isTransferring}>
+                Cancel
+              </Button>
+              <Button variant="destructive" type="button" onClick={handleConfirmClear} disabled={isTransferring}>
+                Clear all sessions
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200/70 bg-white/70 px-3 py-2">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">
             Total {data.total} · Showing {firstResultIndex} to {lastResultIndex}
@@ -405,54 +379,31 @@ export const HistoryWindow = () => {
             <span className="text-xs font-semibold text-gray-500">
               Page {page} of {totalPages}
             </span>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleRefresh}
-              disabled={isLoading || !isAvailable}
-            >
+            <Button size="sm" variant="outline" onClick={handleRefresh} disabled={isLoading || !isAvailable}>
               Refresh
             </Button>
           </div>
         </div>
 
         <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-          {error && (
-            <div className="px-4 py-3 text-sm text-red-500">{error}</div>
-          )}
-          {!isAvailable && (
-            <div className="px-4 py-6 text-sm text-gray-500">
-              Session history is unavailable in this window.
-            </div>
-          )}
-          {showEmpty && (
-            <div className="px-4 py-6 text-sm text-gray-500">
-              No completed sessions yet.
-            </div>
-          )}
+          {error && <div className="px-4 py-3 text-sm text-red-500">{error}</div>}
+          {!isAvailable && <div className="px-4 py-6 text-sm text-gray-500">Session history is unavailable in this window.</div>}
+          {showEmpty && <div className="px-4 py-6 text-sm text-gray-500">No completed sessions yet.</div>}
           {!showEmpty && isAvailable && (
             <Table>
               <TableHeader className="bg-gray-50 text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 [&_tr]:border-b-gray-200">
                 <TableRow>
                   <TableHead className="px-4 py-3">ID</TableHead>
-                  <TableHead className="px-4 py-3 whitespace-normal">
-                    Time range
-                  </TableHead>
+                  <TableHead className="px-4 py-3 whitespace-normal">Time range</TableHead>
                   <TableHead className="px-4 py-3">Details</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {data.items.map((session) => (
                   <TableRow key={session.id} className="border-gray-200">
-                    <TableCell className="px-4 py-3 font-semibold text-gray-900">
-                      {session.id}
-                    </TableCell>
+                    <TableCell className="px-4 py-3 font-semibold text-gray-900">{session.id}</TableCell>
                     <TableCell className="px-4 py-3 text-gray-700 whitespace-normal">
-                      {formatSessionTimeRange(
-                        session.startedAt,
-                        session.endedAt,
-                        session.focusSeconds,
-                      )}
+                      {formatSessionTimeRange(session.startedAt, session.endedAt, session.focusSeconds)}
                     </TableCell>
                     <TableCell className="px-4 py-3">
                       <Button
@@ -472,24 +423,16 @@ export const HistoryWindow = () => {
                   <TableCell colSpan={3} className="px-4 py-3">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <p className="text-xs text-gray-500">
-                        Showing {firstResultIndex} to {lastResultIndex} of{" "}
-                        {data.total} sessions
+                        Showing {firstResultIndex} to {lastResultIndex} of {data.total} sessions
                       </p>
                       <div className="flex flex-wrap items-center gap-1">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setPage(1)}
-                          disabled={!canPrevious || isLoading}
-                        >
+                        <Button size="sm" variant="outline" onClick={() => setPage(1)} disabled={!canPrevious || isLoading}>
                           First
                         </Button>
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() =>
-                            setPage((prev) => Math.max(1, prev - 1))
-                          }
+                          onClick={() => setPage((prev) => Math.max(1, prev - 1))}
                           disabled={!canPrevious || isLoading}
                         >
                           Prev
@@ -497,10 +440,7 @@ export const HistoryWindow = () => {
                         {pageItems.map((item, index) => {
                           if (typeof item !== "number") {
                             return (
-                              <span
-                                key={`${item}-${index}`}
-                                className="px-2 text-xs text-gray-400"
-                              >
+                              <span key={`${item}-${index}`} className="px-2 text-xs text-gray-400">
                                 …
                               </span>
                             );
@@ -521,19 +461,12 @@ export const HistoryWindow = () => {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() =>
-                            setPage((prev) => Math.min(totalPages, prev + 1))
-                          }
+                          onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
                           disabled={!canNext || isLoading}
                         >
                           Next
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setPage(totalPages)}
-                          disabled={!canNext || isLoading}
-                        >
+                        <Button size="sm" variant="outline" onClick={() => setPage(totalPages)} disabled={!canNext || isLoading}>
                           Last
                         </Button>
                       </div>
