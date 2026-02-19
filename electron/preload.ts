@@ -82,6 +82,8 @@ const sessions = {
       "sessions:import",
       value,
     ) as Promise<SessionTransferResult>,
+  clear: () =>
+    ipcRenderer.invoke("sessions:clear") as Promise<SessionTransferResult>,
 };
 
 const sessionDetails = {
