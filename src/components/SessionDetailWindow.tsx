@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useSessionDetail } from "@/lib/hooks/session-hooks";
 import type { SessionAppUsage } from "@/lib/session-types";
@@ -45,20 +45,50 @@ const getSegmentSeconds = (segment: SessionAppUsage) => {
   return Math.max(0, Math.round((end - start) / 1000));
 };
 
+const normalizeWindowTitle = (value?: string | null) => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
+const getSegmentLabel = (segment: SessionAppUsage) => {
+  const windowTitle = normalizeWindowTitle(segment.windowTitle);
+  return windowTitle ? `${segment.appName}: ${windowTitle}` : segment.appName;
+};
+
 export const SessionDetailWindow = () => {
   const sessionId = useMemo(() => getSessionIdFromQuery(), []);
   const { data, isLoading, error, refresh, isAvailable } = useSessionDetail(sessionId);
+  const [expandedApps, setExpandedApps] = useState<Record<string, boolean>>({});
 
   const segments = data?.appUsage ?? [];
-  const totals = useMemo(() => {
-    const map = new Map<string, number>();
+  const appTotals = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        seconds: number;
+        windows: Map<string, number>;
+      }
+    >();
     segments.forEach((segment) => {
       const seconds = getSegmentSeconds(segment);
       if (seconds <= 0) return;
-      map.set(segment.appName, (map.get(segment.appName) ?? 0) + seconds);
+      const current = map.get(segment.appName) ?? { seconds: 0, windows: new Map<string, number>() };
+      current.seconds += seconds;
+      const windowTitle = normalizeWindowTitle(segment.windowTitle);
+      if (windowTitle) {
+        current.windows.set(windowTitle, (current.windows.get(windowTitle) ?? 0) + seconds);
+      }
+      map.set(segment.appName, current);
     });
     return Array.from(map.entries())
-      .map(([appName, seconds]) => ({ appName, seconds }))
+      .map(([appName, value]) => ({
+        appName,
+        seconds: value.seconds,
+        windows: Array.from(value.windows.entries())
+          .map(([windowTitle, seconds]) => ({ windowTitle, seconds }))
+          .sort((a, b) => b.seconds - a.seconds)
+      }))
       .sort((a, b) => b.seconds - a.seconds);
   }, [segments]);
 
@@ -67,8 +97,12 @@ export const SessionDetailWindow = () => {
     if (typeof data.focusSeconds === "number") {
       return data.focusSeconds;
     }
-    return totals.reduce((sum, entry) => sum + entry.seconds, 0);
-  }, [data, totals]);
+    return appTotals.reduce((sum, entry) => sum + entry.seconds, 0);
+  }, [appTotals, data]);
+
+  const toggleExpandedApp = (appName: string) => {
+    setExpandedApps((current) => ({ ...current, [appName]: !current[appName] }));
+  };
 
   return (
     <div className="min-h-screen bg-white px-4 py-5 text-gray-900">
@@ -97,24 +131,59 @@ export const SessionDetailWindow = () => {
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
           <div className="space-y-1">
             <h2 className="text-sm font-semibold text-gray-900">Application usage summary</h2>
-            <p className="text-xs text-gray-500">Distribution of focus time by application.</p>
+            <p className="text-xs text-gray-500">Distribution of focus time by application, then window title.</p>
           </div>
           <div className="mt-4 space-y-3">
-            {totals.length === 0 && <p className="text-sm text-gray-500">No usage data recorded.</p>}
-            {totals.map((entry) => {
+            {appTotals.length === 0 && <p className="text-sm text-gray-500">No usage data recorded.</p>}
+            {appTotals.map((entry) => {
               const total = totalSeconds ?? 0;
               const percent = total > 0 ? (entry.seconds / total) * 100 : 0;
+              const hasWindowBreakdown = entry.windows.length > 0;
+              const isExpanded = Boolean(expandedApps[entry.appName]);
               return (
                 <div key={entry.appName} className="space-y-1">
                   <div className="flex items-center justify-between gap-2 text-xs text-gray-600">
-                    <span className="truncate font-semibold text-gray-900" title={entry.appName}>
-                      {entry.appName}
-                    </span>
+                    <div className="min-w-0 flex-1">
+                      {hasWindowBreakdown ? (
+                        <button
+                          type="button"
+                          className="max-w-full truncate text-left font-semibold text-gray-900 hover:text-gray-700"
+                          onClick={() => toggleExpandedApp(entry.appName)}
+                          title={`${isExpanded ? "Collapse" : "Expand"} ${entry.appName}`}
+                        >
+                          {isExpanded ? "v" : ">"} {entry.appName}
+                        </button>
+                      ) : (
+                        <span className="truncate font-semibold text-gray-900" title={entry.appName}>
+                          {entry.appName}
+                        </span>
+                      )}
+                    </div>
                     <span className="tabular-nums text-gray-500">{formatDuration(entry.seconds)}</span>
                   </div>
                   <div className="h-2 w-full rounded-full bg-gray-100">
                     <div className="h-2 rounded-full bg-gray-900" style={{ width: `${percent}%` }} />
                   </div>
+                  {hasWindowBreakdown && isExpanded && (
+                    <div className="mt-2 space-y-2 border-l border-gray-200 pl-3">
+                      {entry.windows.map((windowEntry) => {
+                        const childPercent = entry.seconds > 0 ? (windowEntry.seconds / entry.seconds) * 100 : 0;
+                        return (
+                          <div key={`${entry.appName}-${windowEntry.windowTitle}`} className="space-y-1">
+                            <div className="flex items-center justify-between gap-2 text-[11px] text-gray-500">
+                              <span className="truncate" title={windowEntry.windowTitle}>
+                                {windowEntry.windowTitle}
+                              </span>
+                              <span className="tabular-nums">{formatDuration(windowEntry.seconds)}</span>
+                            </div>
+                            <div className="h-1.5 w-full rounded-full bg-gray-100">
+                              <div className="h-1.5 rounded-full bg-gray-500" style={{ width: `${childPercent}%` }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -136,8 +205,8 @@ export const SessionDetailWindow = () => {
                 <span className="shrink-0 font-medium text-gray-900">
                   {formatTime(segment.startedAt)} - {formatTime(segment.endedAt)}
                 </span>
-                <span className="min-w-0 flex-1 truncate text-right text-gray-600" title={segment.appName}>
-                  {segment.appName}
+                <span className="min-w-0 flex-1 truncate text-right text-gray-600" title={getSegmentLabel(segment)}>
+                  {getSegmentLabel(segment)}
                 </span>
               </div>
             ))}
