@@ -5,12 +5,12 @@ const { FlatCompat } = require("@eslint/eslintrc");
 
 const compat = new FlatCompat({
   baseDirectory: __dirname,
-  recommendedConfig: js.configs.recommended,
+  recommendedConfig: js.configs.recommended
 });
 
 module.exports = [
   {
-    ignores: ["public/**", ".vite/**", "dist/**"],
+    ignores: ["public/**", ".vite/**", "dist/**"]
   },
   ...compat.extends(
     "eslint:recommended",
@@ -18,37 +18,37 @@ module.exports = [
     "plugin:@typescript-eslint/recommended",
     "plugin:import/recommended",
     "plugin:import/electron",
-    "plugin:import/typescript",
+    "plugin:import/typescript"
   ),
   {
     languageOptions: {
       parser: require("@typescript-eslint/parser"),
       parserOptions: {
-        tsconfigRootDir: __dirname,
+        tsconfigRootDir: __dirname
       },
       ecmaVersion: "latest",
       sourceType: "module",
       globals: {
         ...globals.browser,
-        ...globals.node,
-      },
+        ...globals.node
+      }
     },
     settings: {
       "import/resolver": {
         typescript: {
-          project: [path.join(__dirname, "tsconfig.json")],
+          project: [path.join(__dirname, "tsconfig.json")]
         },
         alias: {
           map: [["@", path.join(__dirname, "src")]],
-          extensions: [".ts", ".tsx", ".js", ".jsx", ".json"],
-        },
-      },
-    },
+          extensions: [".ts", ".tsx", ".js", ".jsx", ".json"]
+        }
+      }
+    }
   },
   {
     files: ["eslint.config.cjs"],
     rules: {
-      "@typescript-eslint/no-require-imports": "off",
-    },
-  },
+      "@typescript-eslint/no-require-imports": "off"
+    }
+  }
 ];

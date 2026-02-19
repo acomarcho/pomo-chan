@@ -12,7 +12,7 @@ export const DEFAULT_BREAK_MINUTES = 5;
 
 export const MODES: Record<Mode, ModeConfig> = {
   focus: { label: "Focus", seconds: DEFAULT_FOCUS_MINUTES * 60 },
-  break: { label: "Break", seconds: DEFAULT_BREAK_MINUTES * 60 },
+  break: { label: "Break", seconds: DEFAULT_BREAK_MINUTES * 60 }
 };
 
 export const clampTimerMinutes = (value: number) => {
@@ -21,11 +21,7 @@ export const clampTimerMinutes = (value: number) => {
   return Math.min(MAX_TIMER_MINUTES, Math.max(MIN_TIMER_MINUTES, rounded));
 };
 
-export const getModeSeconds = (
-  mode: Mode,
-  focusMinutes: number,
-  breakMinutes: number,
-) => {
+export const getModeSeconds = (mode: Mode, focusMinutes: number, breakMinutes: number) => {
   const minutes = mode === "focus" ? focusMinutes : breakMinutes;
   return clampTimerMinutes(minutes) * 60;
 };

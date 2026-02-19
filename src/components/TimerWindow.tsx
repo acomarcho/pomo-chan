@@ -2,14 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import * as PIXI from "pixi.js";
 import { Live2DModel } from "pixi-live2d-display";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { History, Settings2 } from "lucide-react";
 import { MODES, formatTime, type Mode } from "@/lib/pomodoro";
@@ -19,7 +12,7 @@ import {
   useAlwaysOnTop,
   useAppConfig,
   useConfigWindowOpener,
-  useHistoryWindowOpener,
+  useHistoryWindowOpener
 } from "@/lib/hooks/app-hooks";
 import { usePomodoroTimer } from "@/lib/hooks/timer-hooks";
 import { useSessionRecorder } from "@/lib/hooks/session-hooks";
@@ -72,12 +65,7 @@ type Live2DStageProps = {
   voiceAudioSignal?: VoiceAudioSignal;
 };
 
-const Live2DStage = ({
-  activeWindowTitle,
-  activeAppOwner,
-  showActiveApp,
-  voiceAudioSignal,
-}: Live2DStageProps) => {
+const Live2DStage = ({ activeWindowTitle, activeAppOwner, showActiveApp, voiceAudioSignal }: Live2DStageProps) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const live2dModelRef = useRef<Live2DModel | null>(null);
@@ -86,15 +74,8 @@ const Live2DStage = ({
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const analyserBufferRef = useRef<Uint8Array<ArrayBuffer> | null>(null);
-  const audioSourcesRef = useRef(
-    new Map<HTMLAudioElement, MediaElementAudioSourceNode>(),
-  );
-  const audioListenersRef = useRef(
-    new Map<
-      HTMLAudioElement,
-      { onPlay: () => void; onPause: () => void; onEnded: () => void }
-    >(),
-  );
+  const audioSourcesRef = useRef(new Map<HTMLAudioElement, MediaElementAudioSourceNode>());
+  const audioListenersRef = useRef(new Map<HTMLAudioElement, { onPlay: () => void; onPause: () => void; onEnded: () => void }>());
   const activeAudioRef = useRef<HTMLAudioElement | null>(null);
   const internalModelRef = useRef<InternalModelWithEvents | null>(null);
 
@@ -102,9 +83,7 @@ const Live2DStage = ({
   // read its volume in real time and drive the mouth parameter while it plays.
   const setupVoiceAudio = useCallback((audio: HTMLAudioElement) => {
     const AudioContextCtor =
-      window.AudioContext ||
-      (window as typeof window & { webkitAudioContext?: typeof AudioContext })
-        .webkitAudioContext;
+      window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AudioContextCtor) return;
 
     if (!audioContextRef.current) {
@@ -118,9 +97,7 @@ const Live2DStage = ({
       analyser.smoothingTimeConstant = 0.6;
       analyser.connect(audioContext.destination);
       analyserRef.current = analyser;
-      analyserBufferRef.current = new Uint8Array(
-        new ArrayBuffer(analyser.fftSize),
-      );
+      analyserBufferRef.current = new Uint8Array(new ArrayBuffer(analyser.fftSize));
     }
     const analyser = analyserRef.current;
     if (!analyser) return;
@@ -154,7 +131,7 @@ const Live2DStage = ({
       audioListenersRef.current.set(audio, {
         onPlay: handlePlay,
         onPause: handlePause,
-        onEnded: handleEnded,
+        onEnded: handleEnded
       });
     }
 
@@ -176,7 +153,7 @@ const Live2DStage = ({
       backgroundAlpha: 0,
       antialias: true,
       autoDensity: true,
-      resizeTo: container,
+      resizeTo: container
     });
 
     const canvas = app.view as HTMLCanvasElement;
@@ -191,9 +168,7 @@ const Live2DStage = ({
     // value into the model's mouth-open parameter each frame.
     const updateLipSync = () => {
       const modelInstance = live2dModelRef.current;
-      const coreModel = modelInstance?.internalModel?.coreModel as
-        | Live2DCoreModel
-        | undefined;
+      const coreModel = modelInstance?.internalModel?.coreModel as Live2DCoreModel | undefined;
       const ids = lipSyncIdsRef.current;
       if (!coreModel || ids.length === 0) return;
 
@@ -201,12 +176,7 @@ const Live2DStage = ({
       const activeAudio = activeAudioRef.current;
       let target = 0;
 
-      if (
-        activeAudio &&
-        analyser &&
-        !activeAudio.paused &&
-        !activeAudio.ended
-      ) {
+      if (activeAudio && analyser && !activeAudio.paused && !activeAudio.ended) {
         const buffer = analyserBufferRef.current;
         if (buffer) {
           analyser.getByteTimeDomainData(buffer);
@@ -248,9 +218,7 @@ const Live2DStage = ({
       if (!width || !height || !modelBaseSize.width || !modelBaseSize.height) {
         return;
       }
-      const scale =
-        Math.min(width / modelBaseSize.width, height / modelBaseSize.height) *
-        LIVE2D_ZOOM;
+      const scale = Math.min(width / modelBaseSize.width, height / modelBaseSize.height) * LIVE2D_ZOOM;
       model.scale.set(scale);
       model.pivot.set(modelBaseSize.width / 2, modelBaseSize.height / 2);
       model.position.set(width / 2, height / 2 + height * LIVE2D_Y_OFFSET);
@@ -261,7 +229,7 @@ const Live2DStage = ({
         model = await Live2DModel.from(LIVE2D_MODEL_URL, {
           autoInteract: true,
           // Disable built-in idle motions so the model only moves when we drive it.
-          idleMotionGroup: "__none__",
+          idleMotionGroup: "__none__"
         });
         if (destroyed) {
           model.destroy();
@@ -276,8 +244,7 @@ const Live2DStage = ({
         app.renderer.on("resize", fitModel);
         live2dModelRef.current = model;
         model.once("ready", () => {
-          const internalModel =
-            model?.internalModel as unknown as InternalModelWithEvents;
+          const internalModel = model?.internalModel as unknown as InternalModelWithEvents;
           if (internalModel?.on) {
             internalModel.on("afterMotionUpdate", updateLipSync);
             internalModelRef.current = internalModel;
@@ -300,15 +267,10 @@ const Live2DStage = ({
             };
             const groups = Array.isArray(data?.Groups) ? data.Groups : [];
             const lipSyncGroup = groups.find(
-              (group) =>
-                group?.Target === "Parameter" &&
-                group?.Name === "LipSync" &&
-                Array.isArray(group?.Ids),
+              (group) => group?.Target === "Parameter" && group?.Name === "LipSync" && Array.isArray(group?.Ids)
             );
             if (lipSyncGroup?.Ids?.length) {
-              lipSyncIdsRef.current = lipSyncGroup.Ids.filter(
-                (id) => typeof id === "string",
-              );
+              lipSyncIdsRef.current = lipSyncGroup.Ids.filter((id) => typeof id === "string");
             }
           } catch (error) {
             console.warn("Failed to load lip sync parameters", error);
@@ -362,24 +324,14 @@ const Live2DStage = ({
   return (
     <div className="relative flex h-65 w-full max-w-3xl items-center justify-center overflow-hidden rounded-2xl bg-gray-200 sm:h-75">
       {/* Live2D canvas mounts into this container. */}
-      {!isLoaded && (
-        <span className="pointer-events-none relative z-10 text-sm font-medium text-gray-500">
-          Loading model...
-        </span>
-      )}
+      {!isLoaded && <span className="pointer-events-none relative z-10 text-sm font-medium text-gray-500">Loading model...</span>}
       {showActiveApp && (
         <div className="absolute bottom-3 left-3 z-10 flex max-w-[70%] flex-col gap-0.5 rounded-lg bg-white/90 px-3 py-1.5 text-[0.65rem] font-semibold text-gray-600 shadow-sm backdrop-blur">
           <div className="flex items-center gap-2">
             <span className="uppercase tracking-[0.2em]">Active app</span>
-            <span className="truncate text-[0.7rem] font-medium text-gray-900">
-              {activeAppOwner || "Unknown"}
-            </span>
+            <span className="truncate text-[0.7rem] font-medium text-gray-900">{activeAppOwner || "Unknown"}</span>
           </div>
-          {activeWindowTitle && (
-            <span className="truncate text-[0.6rem] text-gray-500">
-              {activeWindowTitle}
-            </span>
-          )}
+          {activeWindowTitle && <span className="truncate text-[0.6rem] text-gray-500">{activeWindowTitle}</span>}
         </div>
       )}
       <div ref={containerRef} className="absolute inset-0" />
@@ -389,24 +341,18 @@ const Live2DStage = ({
 
 export const TimerWindow = () => {
   const { config } = useAppConfig();
-  const { openConfigWindow, isAvailable: isConfigAvailable } =
-    useConfigWindowOpener();
-  const { openHistoryWindow, isAvailable: isHistoryAvailable } =
-    useHistoryWindowOpener();
+  const { openConfigWindow, isAvailable: isConfigAvailable } = useConfigWindowOpener();
+  const { openHistoryWindow, isAvailable: isHistoryAvailable } = useHistoryWindowOpener();
   const { addSession } = useSessionRecorder();
-  const {
-    value: isAlwaysOnTop,
-    setValue: setAlwaysOnTop,
-    isAvailable: isAlwaysOnTopAvailable,
-  } = useAlwaysOnTop();
+  const { value: isAlwaysOnTop, setValue: setAlwaysOnTop, isAvailable: isAlwaysOnTopAvailable } = useAlwaysOnTop();
   const {
     title: activeWindowTitle,
     ownerName: activeAppOwner,
-    isAvailable: isActiveAppAvailable,
+    isAvailable: isActiveAppAvailable
   } = useActiveWindowInfo(ACTIVE_APP_POLL_INTERVAL_MS);
   const [voiceAudioSignal, setVoiceAudioSignal] = useState<VoiceAudioSignal>({
     audio: null,
-    token: 0,
+    token: 0
   });
   const [isEndSessionConfirmOpen, setIsEndSessionConfirmOpen] = useState(false);
   const usageSegmentsRef = useRef<SessionAppUsage[]>([]);
@@ -429,7 +375,7 @@ export const TimerWindow = () => {
     usageSegmentsRef.current.push({
       appName: active.appName,
       startedAt: active.startedAt,
-      endedAt: endedAt.toISOString(),
+      endedAt: endedAt.toISOString()
     });
   }, []);
 
@@ -442,10 +388,10 @@ export const TimerWindow = () => {
       }
       activeSegmentRef.current = {
         appName,
-        startedAt: at.toISOString(),
+        startedAt: at.toISOString()
       };
     },
-    [closeActiveSegment],
+    [closeActiveSegment]
   );
 
   const discardSegments = useCallback(() => {
@@ -460,7 +406,7 @@ export const TimerWindow = () => {
       discardSegments();
       return segments;
     },
-    [closeActiveSegment, discardSegments],
+    [closeActiveSegment, discardSegments]
   );
 
   const handleVoiceAudioPlay = useCallback((audio: HTMLAudioElement) => {
@@ -470,22 +416,16 @@ export const TimerWindow = () => {
     (session: { startedAt: string; endedAt: string }) => {
       const segments = finalizeSegments(session.endedAt);
       const derivedFocusSeconds = calculateFocusSeconds(segments);
-      const fallbackFocusSeconds = Math.max(
-        0,
-        Math.round(
-          (Date.parse(session.endedAt) - Date.parse(session.startedAt)) / 1000,
-        ),
-      );
-      const focusSeconds =
-        segments.length > 0 ? derivedFocusSeconds : fallbackFocusSeconds;
+      const fallbackFocusSeconds = Math.max(0, Math.round((Date.parse(session.endedAt) - Date.parse(session.startedAt)) / 1000));
+      const focusSeconds = segments.length > 0 ? derivedFocusSeconds : fallbackFocusSeconds;
       void addSession({
         startedAt: session.startedAt,
         endedAt: session.endedAt,
         focusSeconds,
-        appUsage: segments,
+        appUsage: segments
       });
     },
-    [addSession, finalizeSegments],
+    [addSession, finalizeSegments]
   );
   const {
     mode,
@@ -498,17 +438,15 @@ export const TimerWindow = () => {
     requestModeSwitch,
     confirmModeSwitch,
     cancelModeSwitch,
-    endFocusSessionEarly,
+    endFocusSessionEarly
   } = usePomodoroTimer(config, {
     onVoiceAudioPlay: handleVoiceAudioPlay,
-    onFocusComplete: handleFocusComplete,
+    onFocusComplete: handleFocusComplete
   });
 
   const activeAppLabel = isActiveAppAvailable
     ? normalizeAppName(
-        activeAppOwner && activeWindowTitle
-          ? `${activeAppOwner}: ${activeWindowTitle}`
-          : activeAppOwner || "Unknown",
+        activeAppOwner && activeWindowTitle ? `${activeAppOwner}: ${activeWindowTitle}` : activeAppOwner || "Unknown"
       )
     : "Unavailable";
 
@@ -613,23 +551,14 @@ export const TimerWindow = () => {
 
       <div className="flex flex-1 flex-col justify-center">
         <section className="text-center">
-          <h2 className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-500">
-            {MODES[mode].label} Timer
-          </h2>
-          <h1
-            className="mt-2 text-[clamp(2.4rem,6.5vw,4rem)] font-semibold leading-none tabular-nums"
-            aria-live="polite"
-          >
+          <h2 className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-500">{MODES[mode].label} Timer</h2>
+          <h1 className="mt-2 text-[clamp(2.4rem,6.5vw,4rem)] font-semibold leading-none tabular-nums" aria-live="polite">
             {formattedTime}
           </h1>
         </section>
 
         <section className="flex items-center justify-center gap-3 pb-2 pt-4">
-          <Button
-            className="rounded-full px-6 py-2.5 text-sm font-semibold"
-            type="button"
-            onClick={toggleRunning}
-          >
+          <Button className="rounded-full px-6 py-2.5 text-sm font-semibold" type="button" onClick={toggleRunning}>
             {primaryLabel}
           </Button>
           <Button
@@ -663,23 +592,14 @@ export const TimerWindow = () => {
       >
         <DialogContent className="text-left">
           <DialogHeader>
-            <DialogTitle>
-              Switch to {pendingMode ? MODES[pendingMode].label : switchLabel}{" "}
-              timer?
-            </DialogTitle>
-            <DialogDescription>
-              Your current timer progress will be lost if you switch modes.
-            </DialogDescription>
+            <DialogTitle>Switch to {pendingMode ? MODES[pendingMode].label : switchLabel} timer?</DialogTitle>
+            <DialogDescription>Your current timer progress will be lost if you switch modes.</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" type="button" onClick={cancelModeSwitch}>
               Keep {MODES[mode].label}
             </Button>
-            <Button
-              variant="destructive"
-              type="button"
-              onClick={confirmModeSwitch}
-            >
+            <Button variant="destructive" type="button" onClick={confirmModeSwitch}>
               Switch to {pendingMode ? MODES[pendingMode].label : switchLabel}
             </Button>
           </DialogFooter>
@@ -696,23 +616,14 @@ export const TimerWindow = () => {
           <DialogHeader>
             <DialogTitle>End this focus session now?</DialogTitle>
             <DialogDescription>
-              We&apos;ll save what you&apos;ve completed so far to your session
-              history, then move you to a break timer.
+              We&apos;ll save what you&apos;ve completed so far to your session history, then move you to a break timer.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button
-              variant="outline"
-              type="button"
-              onClick={cancelEndSessionEarly}
-            >
+            <Button variant="outline" type="button" onClick={cancelEndSessionEarly}>
               Keep focusing
             </Button>
-            <Button
-              variant="destructive"
-              type="button"
-              onClick={confirmEndSessionEarly}
-            >
+            <Button variant="destructive" type="button" onClick={confirmEndSessionEarly}>
               End session
             </Button>
           </DialogFooter>

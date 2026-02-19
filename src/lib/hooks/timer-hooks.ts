@@ -1,11 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getModeSeconds, type Mode } from "@/lib/pomodoro";
 import type { AppConfig } from "@/lib/hooks/app-hooks";
-import {
-  AMBIENT_SOUNDS,
-  AMBIENT_SOUND_FILES,
-  type AmbientSound,
-} from "@/lib/ambient";
+import { AMBIENT_SOUNDS, AMBIENT_SOUND_FILES, type AmbientSound } from "@/lib/ambient";
 
 type AudioEvent = "start" | "end";
 type AudioKey = `${Mode}_${AudioEvent}`;
@@ -14,13 +10,12 @@ const AUDIO_BASE_URL = `${import.meta.env.BASE_URL}audio/`;
 const REMINDER_INTERVAL_MS = 5 * 60 * 1000;
 
 const buildAudioMap = (language: AppConfig["audioLanguage"]) => {
-  const buildUrl = (audioMode: Mode, event: AudioEvent) =>
-    `${AUDIO_BASE_URL}${audioMode}_${event}_${language}.mp3`;
+  const buildUrl = (audioMode: Mode, event: AudioEvent) => `${AUDIO_BASE_URL}${audioMode}_${event}_${language}.mp3`;
   const map: Record<AudioKey, HTMLAudioElement> = {
     focus_start: new Audio(buildUrl("focus", "start")),
     focus_end: new Audio(buildUrl("focus", "end")),
     break_start: new Audio(buildUrl("break", "start")),
-    break_end: new Audio(buildUrl("break", "end")),
+    break_end: new Audio(buildUrl("break", "end"))
   };
   Object.values(map).forEach((audio) => {
     audio.preload = "auto";
@@ -55,28 +50,20 @@ const createAmbientAudioMap = () => {
   return map;
 };
 
-const clampAmbientVolume = (value: number) =>
-  Math.min(1, Math.max(0, value / 100));
+const clampAmbientVolume = (value: number) => Math.min(1, Math.max(0, value / 100));
 
 type PomodoroTimerOptions = {
   onVoiceAudioPlay?: (audio: HTMLAudioElement) => void;
   onFocusComplete?: (value: { startedAt: string; endedAt: string }) => void;
 };
 
-export const usePomodoroTimer = (
-  config: AppConfig,
-  options: PomodoroTimerOptions = {},
-) => {
+export const usePomodoroTimer = (config: AppConfig, options: PomodoroTimerOptions = {}) => {
   const [mode, setMode] = useState<Mode>("focus");
-  const [remaining, setRemaining] = useState(() =>
-    getModeSeconds("focus", config.focusMinutes, config.breakMinutes),
-  );
+  const [remaining, setRemaining] = useState(() => getModeSeconds("focus", config.focusMinutes, config.breakMinutes));
   const [isRunning, setIsRunning] = useState(false);
   const [pendingMode, setPendingMode] = useState<Mode | null>(null);
 
-  const onVoiceAudioPlayRef = useRef<PomodoroTimerOptions["onVoiceAudioPlay"]>(
-    options.onVoiceAudioPlay,
-  );
+  const onVoiceAudioPlayRef = useRef<PomodoroTimerOptions["onVoiceAudioPlay"]>(options.onVoiceAudioPlay);
 
   const audioMapRef = useRef(buildAudioMap(config.audioLanguage));
   const tickTockRef = useRef(createTickTockAudio());
@@ -88,7 +75,7 @@ export const usePomodoroTimer = (
   const focusStartedAtRef = useRef<Date | null>(null);
   const modeSecondsRef = useRef({
     focus: getModeSeconds("focus", config.focusMinutes, config.breakMinutes),
-    break: getModeSeconds("break", config.focusMinutes, config.breakMinutes),
+    break: getModeSeconds("break", config.focusMinutes, config.breakMinutes)
   });
 
   useEffect(() => {
@@ -131,18 +118,15 @@ export const usePomodoroTimer = (
     onVoiceAudioPlayRef.current = options.onVoiceAudioPlay;
   }, [options.onVoiceAudioPlay]);
 
-  const onFocusCompleteRef = useRef<PomodoroTimerOptions["onFocusComplete"]>(
-    options.onFocusComplete,
-  );
+  const onFocusCompleteRef = useRef<PomodoroTimerOptions["onFocusComplete"]>(options.onFocusComplete);
 
   useEffect(() => {
     onFocusCompleteRef.current = options.onFocusComplete;
   }, [options.onFocusComplete]);
 
   const getSecondsForMode = useCallback(
-    (nextMode: Mode) =>
-      getModeSeconds(nextMode, config.focusMinutes, config.breakMinutes),
-    [config.breakMinutes, config.focusMinutes],
+    (nextMode: Mode) => getModeSeconds(nextMode, config.focusMinutes, config.breakMinutes),
+    [config.breakMinutes, config.focusMinutes]
   );
 
   // Sync duration changes while idle and avoid surprising jumps.
@@ -155,7 +139,7 @@ export const usePomodoroTimer = (
   useEffect(() => {
     const next = {
       focus: getSecondsForMode("focus"),
-      break: getSecondsForMode("break"),
+      break: getSecondsForMode("break")
     };
     const prev = modeSecondsRef.current;
     modeSecondsRef.current = next;
@@ -230,7 +214,7 @@ export const usePomodoroTimer = (
             if (startedAt) {
               onFocusCompleteRef.current?.({
                 startedAt: startedAt.toISOString(),
-                endedAt: new Date().toISOString(),
+                endedAt: new Date().toISOString()
               });
             }
             focusStartedAtRef.current = null;
@@ -262,7 +246,7 @@ export const usePomodoroTimer = (
       setRemaining(getSecondsForMode(nextMode));
       focusStartedAtRef.current = null;
     },
-    [getSecondsForMode],
+    [getSecondsForMode]
   );
 
   const toggleRunning = useCallback(() => {
@@ -270,11 +254,7 @@ export const usePomodoroTimer = (
       const next = !prev;
       if (next) {
         playSound(mode, "start");
-        if (
-          mode === "focus" &&
-          remaining === getSecondsForMode("focus") &&
-          !focusStartedAtRef.current
-        ) {
+        if (mode === "focus" && remaining === getSecondsForMode("focus") && !focusStartedAtRef.current) {
           focusStartedAtRef.current = new Date();
         }
       }
@@ -311,7 +291,7 @@ export const usePomodoroTimer = (
     const endedAt = new Date();
     onFocusCompleteRef.current?.({
       startedAt: startedAt.toISOString(),
-      endedAt: endedAt.toISOString(),
+      endedAt: endedAt.toISOString()
     });
 
     focusStartedAtRef.current = null;
@@ -332,6 +312,6 @@ export const usePomodoroTimer = (
     requestModeSwitch,
     confirmModeSwitch,
     cancelModeSwitch,
-    endFocusSessionEarly,
+    endFocusSessionEarly
   };
 };
