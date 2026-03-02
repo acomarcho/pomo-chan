@@ -125,11 +125,19 @@ export const addSession = (record: SessionRecord) => {
   return sessionId;
 };
 
-export const listSessions = (page: number, pageSize: number): SessionList => {
+export const listSessions = (
+  page: number,
+  pageSize: number,
+  dateRange?: { startDate?: string; endDate?: string }
+): SessionList => {
   const database = ensureDb();
   const safePage = Number.isFinite(page) && page > 0 ? page : 1;
   const safePageSize = Number.isFinite(pageSize) && pageSize > 0 ? pageSize : 10;
   const offset = (safePage - 1) * safePageSize;
+
+  const hasDateFilter = dateRange?.startDate || dateRange?.endDate;
+  const whereClause = hasDateFilter ? `WHERE started_at >= ? AND started_at <= ?` : "";
+
   const rows = database
     .prepare(
       `
@@ -144,17 +152,26 @@ export const listSessions = (page: number, pageSize: number): SessionList => {
           LIMIT 1
         ) AS hasUsage
       FROM sessions
+      ${whereClause}
       ORDER BY sessions.started_at DESC
       LIMIT ? OFFSET ?
       `
     )
-    .all(safePageSize, offset) as Array<{
+    .bind(
+      ...(hasDateFilter
+        ? [dateRange!.startDate ?? "0000-01-01T00:00:00.000Z", dateRange!.endDate ?? "9999-12-31T23:59:59.999Z"]
+        : []),
+      safePageSize,
+      offset
+    )
+    .all() as Array<{
     id: number;
     startedAt: string;
     endedAt: string;
     focusSeconds: number | null;
     hasUsage: number;
   }>;
+
   const items = rows.map((row) => ({
     id: row.id,
     startedAt: row.startedAt,
@@ -162,7 +179,16 @@ export const listSessions = (page: number, pageSize: number): SessionList => {
     focusSeconds: typeof row.focusSeconds === "number" ? row.focusSeconds : null,
     hasUsage: Boolean(row.hasUsage)
   })) as SessionEntry[];
-  const totalRow = database.prepare("SELECT COUNT(*) AS count FROM sessions").get() as { count: number };
+
+  const totalRow = database
+    .prepare(`SELECT COUNT(*) AS count FROM sessions ${whereClause}`)
+    .bind(
+      ...(hasDateFilter
+        ? [dateRange!.startDate ?? "0000-01-01T00:00:00.000Z", dateRange!.endDate ?? "9999-12-31T23:59:59.999Z"]
+        : [])
+    )
+    .get() as { count: number };
+
   return { items, total: Number(totalRow.count) };
 };
 

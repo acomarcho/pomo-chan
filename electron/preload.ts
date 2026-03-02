@@ -60,7 +60,8 @@ const focusSession = {
 const sessions = {
   add: (value: { startedAt: string; endedAt: string; focusSeconds?: number | null; appUsage?: SessionDetail["appUsage"] }) =>
     ipcRenderer.invoke("session:add", value) as Promise<number>,
-  list: (value: { page: number; pageSize: number }) => ipcRenderer.invoke("sessions:list", value) as Promise<SessionList>,
+  list: (value: { page: number; pageSize: number; startDate?: string; endDate?: string }) =>
+    ipcRenderer.invoke("sessions:list", value) as Promise<SessionList>,
   detail: (value: { id: number }) => ipcRenderer.invoke("sessions:detail", value) as Promise<SessionDetail | null>,
   summary: () => ipcRenderer.invoke("sessions:summary") as Promise<SessionFocusSummary>,
   export: () => ipcRenderer.invoke("sessions:export") as Promise<SessionTransferResult>,

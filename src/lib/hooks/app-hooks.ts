@@ -41,7 +41,7 @@ type SessionAPI = {
     focusSeconds?: number | null;
     appUsage?: SessionDetail["appUsage"];
   }) => Promise<number>;
-  list?: (value: { page: number; pageSize: number }) => Promise<SessionList>;
+  list?: (value: { page: number; pageSize: number; startDate?: string; endDate?: string }) => Promise<SessionList>;
   detail?: (value: { id: number }) => Promise<SessionDetail | null>;
   summary?: () => Promise<SessionFocusSummary>;
   export?: () => Promise<SessionTransferResult>;

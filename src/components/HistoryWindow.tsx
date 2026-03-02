@@ -1,12 +1,17 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { format } from "date-fns";
+import { CalendarIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useSessionDetailsWindowOpener } from "@/lib/hooks/app-hooks";
 import { useSessionHistory, useSessionSummary } from "@/lib/hooks/session-hooks";
 import type { SessionImportMode } from "@/lib/session-types";
+import type { DateRange } from "react-day-picker";
 
 const PAGE_SIZE = 10;
 
@@ -68,6 +73,17 @@ const formatFocusDuration = (seconds: number) => {
 
 export const HistoryWindow = () => {
   const [page, setPage] = useState(1);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+
+  // Convert DateRange to ISO strings for API
+  const apiDateRange = useMemo(() => {
+    if (!dateRange?.from) return undefined;
+    return {
+      startDate: dateRange.from.toISOString(),
+      endDate: dateRange.to ? dateRange.to.toISOString() : dateRange.from.toISOString()
+    };
+  }, [dateRange]);
+
   const {
     data,
     isLoading,
@@ -79,7 +95,7 @@ export const HistoryWindow = () => {
     exportSessions,
     importSessions,
     clearSessions
-  } = useSessionHistory(page, PAGE_SIZE);
+  } = useSessionHistory(page, PAGE_SIZE, apiDateRange);
   const {
     summary,
     isLoading: isSummaryLoading,
@@ -371,6 +387,54 @@ export const HistoryWindow = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200/70 bg-white/70 px-3 py-2">
+          <Popover>
+            <PopoverTrigger>
+              <Button variant="outline" size="sm" className="gap-2">
+                <CalendarIcon className="h-4 w-4" />
+                {dateRange?.from ? (
+                  dateRange.to ? (
+                    <>
+                      {format(dateRange.from, "MMM d, yyyy")} - {format(dateRange.to, "MMM d, yyyy")}
+                    </>
+                  ) : (
+                    format(dateRange.from, "MMM d, yyyy")
+                  )
+                ) : (
+                  "Filter by date"
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="range"
+                selected={dateRange}
+                onSelect={(range) => {
+                  setDateRange(range);
+                  setPage(1); // Reset to first page when filter changes
+                }}
+                numberOfMonths={2}
+              />
+              {dateRange && (
+                <div className="border-t border-slate-200 p-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => {
+                      setDateRange(undefined);
+                      setPage(1);
+                    }}
+                  >
+                    Clear filter
+                  </Button>
+                </div>
+              )}
+            </PopoverContent>
+          </Popover>
+        </div>
+
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200/70 bg-white/70 px-3 py-2">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">
             Total {data.total} · Showing {firstResultIndex} to {lastResultIndex}
