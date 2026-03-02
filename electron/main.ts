@@ -401,8 +401,8 @@ ipcMain.handle("session:add", (_event, value: SessionRecord) => {
   return addSession(value);
 });
 
-ipcMain.handle("sessions:list", (_event, value: { page: number; pageSize: number }) => {
-  return listSessions(value.page, value.pageSize);
+ipcMain.handle("sessions:list", (_event, value: { page: number; pageSize: number; startDate?: string; endDate?: string }) => {
+  return listSessions(value.page, value.pageSize, { startDate: value.startDate, endDate: value.endDate });
 });
 
 ipcMain.handle("sessions:detail", (_event, value: { id: number }) => {

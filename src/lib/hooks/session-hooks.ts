@@ -26,7 +26,7 @@ export const useSessionRecorder = () => {
   return { addSession, isAvailable: Boolean(api?.add) };
 };
 
-export const useSessionHistory = (page: number, pageSize: number) => {
+export const useSessionHistory = (page: number, pageSize: number, dateRange?: { startDate?: string; endDate?: string }) => {
   const api = window.electronAPI?.sessions;
   const [data, setData] = useState<SessionList>({ items: [], total: 0 });
   const [isLoading, setIsLoading] = useState(false);
@@ -41,14 +41,19 @@ export const useSessionHistory = (page: number, pageSize: number) => {
     setIsLoading(true);
     setError(null);
     try {
-      const result = await api.list({ page, pageSize });
+      const result = await api.list({
+        page,
+        pageSize,
+        startDate: dateRange?.startDate,
+        endDate: dateRange?.endDate
+      });
       setData(result);
     } catch {
       setError("Failed to load sessions.");
     } finally {
       setIsLoading(false);
     }
-  }, [api, page, pageSize]);
+  }, [api, page, pageSize, dateRange?.startDate, dateRange?.endDate]);
 
   useEffect(() => {
     void refresh();
