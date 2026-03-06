@@ -326,6 +326,15 @@ export const mergeSessions = (entries: SessionRecord[]) => {
   return sortedEntries.length;
 };
 
+export const deleteSession = (id: number) => {
+  const database = ensureDb();
+  const del = database.transaction(() => {
+    database.prepare("DELETE FROM session_app_usage WHERE session_id = ?").run(id);
+    database.prepare("DELETE FROM sessions WHERE id = ?").run(id);
+  });
+  del();
+};
+
 export const getSessionDetail = (sessionId: number): SessionDetail | null => {
   const database = ensureDb();
   const session = database

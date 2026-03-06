@@ -49,6 +49,7 @@ import {
   addSession,
   clearSessions,
   closeSessionStore,
+  deleteSession,
   getSessionFocusSummary,
   getSessionDetail,
   listAllSessions,
@@ -414,6 +415,11 @@ ipcMain.handle("sessions:detail", (_event, value: { id: number }) => {
 
 ipcMain.handle("sessions:summary", () => {
   return getSessionFocusSummary();
+});
+
+ipcMain.handle("sessions:delete", (_event, value: { id: number }) => {
+  deleteSession(value.id);
+  return { ok: true };
 });
 
 ipcMain.handle("sessions:clear", () => {
