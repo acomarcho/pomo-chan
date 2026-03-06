@@ -326,7 +326,7 @@ const Live2DStage = ({ activeWindowTitle, activeAppOwner, showActiveApp, voiceAu
   }, [setupVoiceAudio, voiceAudioSignal?.token]);
 
   return (
-    <div className="neo-surface relative flex h-65 w-full max-w-3xl items-center justify-center overflow-hidden bg-[linear-gradient(180deg,#fffaf0_0%,#eae5d9_100%)] sm:h-75">
+    <div className="neo-surface relative flex h-[min(17rem,42vh)] w-full max-w-3xl items-center justify-center overflow-hidden bg-[linear-gradient(180deg,#fffaf0_0%,#eae5d9_100%)] sm:h-[min(21rem,48vh)]">
       {/* Live2D canvas mounts into this container. */}
       {!isLoaded && (
         <span className="pointer-events-none relative z-10 text-sm font-black uppercase tracking-[0.18em] text-muted-foreground">
@@ -514,7 +514,7 @@ export const TimerWindow = () => {
   }, [endFocusSessionEarly]);
 
   return (
-    <div className="window-shell flex flex-col py-4">
+    <div className="window-shell flex h-screen flex-col overflow-hidden py-4">
       <div className="fixed right-3 top-3 z-20 flex items-center gap-2">
         <Button
           variant="outline"
@@ -547,7 +547,7 @@ export const TimerWindow = () => {
         </div>
       </div>
 
-      <section className="flex items-center justify-center pb-3">
+      <section className="flex shrink-0 items-center justify-center pb-1">
         <Live2DStage
           activeWindowTitle={activeWindowTitle}
           activeAppOwner={activeAppOwner}
@@ -556,7 +556,7 @@ export const TimerWindow = () => {
         />
       </section>
 
-      <div className="flex flex-1 flex-col justify-center">
+      <div className="flex min-h-0 flex-1 flex-col justify-center gap-2">
         <section className="neo-panel mx-auto w-full max-w-md text-center">
           <h2 className="window-eyebrow">{MODES[mode].label} Timer</h2>
           <h1 className="neo-mono mt-2 text-[clamp(2.8rem,7vw,4.5rem)] font-black leading-none tabular-nums" aria-live="polite">
@@ -564,7 +564,7 @@ export const TimerWindow = () => {
           </h1>
         </section>
 
-        <section className="flex items-center justify-center gap-3 pb-2 pt-5">
+        <section className="flex shrink-0 items-center justify-center gap-3 pb-1 pt-1">
           <Button className="px-6" type="button" onClick={toggleRunning}>
             {primaryLabel}
           </Button>
@@ -573,7 +573,7 @@ export const TimerWindow = () => {
           </Button>
         </section>
         {canEndSessionEarly && (
-          <section className="flex items-center justify-center pb-2">
+          <section className="flex shrink-0 items-center justify-center pb-1">
             <Button
               className="border-2 border-destructive bg-transparent px-4 text-destructive shadow-[4px_4px_0_0_var(--color-destructive)] hover:bg-destructive/10 hover:shadow-[6px_6px_0_0_var(--color-destructive)] active:shadow-none"
               variant="ghost"
@@ -592,7 +592,7 @@ export const TimerWindow = () => {
           if (!open) cancelModeSwitch();
         }}
       >
-        <DialogContent className="text-left">
+        <DialogContent className="text-left" showCloseButton={false}>
           <DialogHeader>
             <DialogTitle>Switch to {pendingMode ? MODES[pendingMode].label : switchLabel} timer?</DialogTitle>
             <DialogDescription>Your current timer progress will be lost if you switch modes.</DialogDescription>
@@ -614,7 +614,7 @@ export const TimerWindow = () => {
           if (!open) cancelEndSessionEarly();
         }}
       >
-        <DialogContent className="text-left">
+        <DialogContent className="text-left" showCloseButton={false}>
           <DialogHeader>
             <DialogTitle>End this focus session now?</DialogTitle>
             <DialogDescription>
