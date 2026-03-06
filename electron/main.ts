@@ -12,12 +12,16 @@ const getWindowsBinary = app.isPackaged
   ? path.join(process.resourcesPath, "app.asar.unpacked", "node_modules", "get-windows", "main")
   : path.join(app.getAppPath(), "node_modules", "get-windows", "main");
 
+let activeWindowPending = false;
+
 const getActiveWindowNative = async (): Promise<{
   title?: string;
   owner?: { name?: string };
 } | null> => {
+  if (activeWindowPending) return null;
+  activeWindowPending = true;
   try {
-    const { stdout } = await execFileAsync(getWindowsBinary);
+    const { stdout } = await execFileAsync(getWindowsBinary, [], { timeout: 5000 });
     if (!stdout.trim()) return null;
     return JSON.parse(stdout);
   } catch (error: unknown) {
@@ -36,6 +40,8 @@ const getActiveWindowNative = async (): Promise<{
       stdout: execError.stdout?.trim() || "(empty)"
     });
     return null;
+  } finally {
+    activeWindowPending = false;
   }
 };
 
