@@ -162,22 +162,22 @@ export const HistoryWindow = () => {
       id: "today",
       label: "focused today",
       seconds: summarySnapshot.todaySeconds,
-      gradient: "from-amber-50/90 via-white to-amber-100/70",
-      accent: "bg-amber-400/80"
+      gradient: "bg-[#ffe0b5]",
+      accent: "bg-primary"
     },
     {
       id: "week",
       label: "focused in 7 days",
       seconds: summarySnapshot.weekSeconds,
-      gradient: "from-sky-50/90 via-white to-sky-100/70",
-      accent: "bg-sky-400/80"
+      gradient: "bg-[#d7efff]",
+      accent: "bg-sky-400"
     },
     {
       id: "month",
       label: "focused last 30 days",
       seconds: summarySnapshot.monthSeconds,
-      gradient: "from-emerald-50/90 via-white to-emerald-100/70",
-      accent: "bg-emerald-400/80"
+      gradient: "bg-[#d7f5dc]",
+      accent: "bg-emerald-400"
     }
   ];
 
@@ -273,11 +273,11 @@ export const HistoryWindow = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white via-white to-slate-50 px-4 py-6 text-gray-900">
-      <header className="space-y-2 pb-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-500">History</p>
-        <h1 className="text-2xl font-semibold">Completed sessions</h1>
-        <p className="text-sm text-gray-500">Only completed focus sessions are saved.</p>
+    <div className="window-shell py-6">
+      <header className="window-header">
+        <p className="window-eyebrow">History</p>
+        <h1 className="window-title">Completed sessions</h1>
+        <p className="window-subtitle">Only completed focus sessions are saved.</p>
         <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" variant="outline" onClick={handleExport} disabled={!canTransfer}>
             Export
@@ -296,27 +296,24 @@ export const HistoryWindow = () => {
           {summaryCards.map((card) => {
             const time = formatFocusDuration(card.seconds);
             return (
-              <div
-                key={card.id}
-                className={`rounded-2xl border border-slate-200/70 bg-gradient-to-br ${card.gradient} px-4 py-4 shadow-sm`}
-              >
+              <div key={card.id} className={`neo-surface ${card.gradient} px-4 py-4`}>
                 <div className="flex items-center justify-between">
-                  <span className={`h-1.5 w-10 rounded-full ${card.accent}`} />
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-500">Focus</span>
+                  <span className={`h-2 w-12 border-2 border-border ${card.accent}`} />
+                  <span className="text-[10px] font-black uppercase tracking-[0.22em] text-muted-foreground">Focus</span>
                 </div>
-                <div className="mt-3 flex flex-wrap items-baseline gap-2 text-slate-900">
-                  <span className="text-2xl font-semibold tabular-nums">{time.hours}</span>
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">hrs</span>
-                  <span className="text-2xl font-semibold tabular-nums">{time.minutes}</span>
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">mins</span>
+                <div className="neo-mono mt-3 flex flex-wrap items-baseline gap-2 text-foreground">
+                  <span className="text-2xl font-black tabular-nums">{time.hours}</span>
+                  <span className="text-[10px] font-black uppercase tracking-[0.22em] text-muted-foreground">hrs</span>
+                  <span className="text-2xl font-black tabular-nums">{time.minutes}</span>
+                  <span className="text-[10px] font-black uppercase tracking-[0.22em] text-muted-foreground">mins</span>
                 </div>
-                <p className="mt-2 text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">{card.label}</p>
+                <p className="mt-2 text-xs font-black uppercase tracking-[0.18em] text-muted-foreground">{card.label}</p>
               </div>
             );
           })}
         </div>
-        {!isSummaryAvailable && <p className="text-xs text-slate-500">Summary stats are unavailable in this window.</p>}
-        {summaryError && <p className="text-xs text-red-500">{summaryError}</p>}
+        {!isSummaryAvailable && <p className="text-xs text-muted-foreground">Summary stats are unavailable in this window.</p>}
+        {summaryError && <p className="text-xs font-semibold text-destructive">{summaryError}</p>}
         <Dialog open={showImportConfirm} onOpenChange={setShowImportConfirm}>
           <DialogContent className="text-left">
             <DialogHeader>
@@ -331,27 +328,29 @@ export const HistoryWindow = () => {
               >
                 <label
                   htmlFor="import-merge"
-                  className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 px-3 py-3 text-sm transition hover:border-slate-300"
+                  className="flex cursor-pointer items-start gap-3 border-2 border-border bg-card px-3 py-3 text-sm transition hover:-translate-x-px hover:-translate-y-px"
                 >
                   <RadioGroupItem id="import-merge" value="merge" className="mt-0.5" />
                   <div className="space-y-1">
-                    <p className="font-semibold text-slate-900">Merge</p>
-                    <p className="text-xs text-slate-500">Keep existing sessions and add entries from the import.</p>
+                    <p className="font-black uppercase tracking-[0.08em] text-foreground">Merge</p>
+                    <p className="text-xs text-muted-foreground">Keep existing sessions and add entries from the import.</p>
                   </div>
                 </label>
                 <label
                   htmlFor="import-overwrite"
-                  className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 px-3 py-3 text-sm transition hover:border-slate-300"
+                  className="flex cursor-pointer items-start gap-3 border-2 border-border bg-card px-3 py-3 text-sm transition hover:-translate-x-px hover:-translate-y-px"
                 >
                   <RadioGroupItem id="import-overwrite" value="overwrite" className="mt-0.5" />
                   <div className="space-y-1">
-                    <p className="font-semibold text-slate-900">Overwrite</p>
-                    <p className="text-xs text-slate-500">Replace all current sessions with the imported file.</p>
+                    <p className="font-black uppercase tracking-[0.08em] text-foreground">Overwrite</p>
+                    <p className="text-xs text-muted-foreground">Replace all current sessions with the imported file.</p>
                   </div>
                 </label>
               </RadioGroup>
               {importMode === "overwrite" && (
-                <p className="text-xs font-semibold text-red-500">Overwrite will remove all existing sessions on this device.</p>
+                <p className="text-xs font-black uppercase tracking-[0.08em] text-destructive">
+                  Overwrite will remove all existing sessions on this device.
+                </p>
               )}
             </div>
             <DialogFooter>
@@ -388,7 +387,7 @@ export const HistoryWindow = () => {
           </DialogContent>
         </Dialog>
 
-        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200/70 bg-white/70 px-3 py-2">
+        <div className="neo-toolbar">
           <Popover>
             <PopoverTrigger>
               <Button variant="outline" size="sm" className="gap-2">
@@ -417,7 +416,7 @@ export const HistoryWindow = () => {
                 numberOfMonths={2}
               />
               {dateRange && (
-                <div className="border-t border-slate-200 p-2">
+                <div className="border-t-2 border-border p-2">
                   <Button
                     variant="ghost"
                     size="sm"
@@ -435,12 +434,12 @@ export const HistoryWindow = () => {
           </Popover>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200/70 bg-white/70 px-3 py-2">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">
+        <div className="neo-toolbar justify-between">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-muted-foreground">
             Total {data.total} · Showing {firstResultIndex} to {lastResultIndex}
           </p>
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-gray-500">
+            <span className="text-xs font-black uppercase tracking-[0.12em] text-muted-foreground">
               Page {page} of {totalPages}
             </span>
             <Button size="sm" variant="outline" onClick={handleRefresh} disabled={isLoading || !isAvailable}>
@@ -449,13 +448,15 @@ export const HistoryWindow = () => {
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-          {error && <div className="px-4 py-3 text-sm text-red-500">{error}</div>}
-          {!isAvailable && <div className="px-4 py-6 text-sm text-gray-500">Session history is unavailable in this window.</div>}
-          {showEmpty && <div className="px-4 py-6 text-sm text-gray-500">No completed sessions yet.</div>}
+        <div className="neo-surface overflow-hidden">
+          {error && <div className="px-4 py-3 text-sm font-semibold text-destructive">{error}</div>}
+          {!isAvailable && (
+            <div className="px-4 py-6 text-sm text-muted-foreground">Session history is unavailable in this window.</div>
+          )}
+          {showEmpty && <div className="px-4 py-6 text-sm text-muted-foreground">No completed sessions yet.</div>}
           {!showEmpty && isAvailable && (
             <Table>
-              <TableHeader className="bg-gray-50 text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 [&_tr]:border-b-gray-200">
+              <TableHeader className="bg-secondary text-xs font-black uppercase tracking-[0.18em] text-muted-foreground [&_tr]:border-b-border">
                 <TableRow>
                   <TableHead className="px-4 py-3">ID</TableHead>
                   <TableHead className="px-4 py-3 whitespace-normal">Time range</TableHead>
@@ -464,9 +465,9 @@ export const HistoryWindow = () => {
               </TableHeader>
               <TableBody>
                 {data.items.map((session) => (
-                  <TableRow key={session.id} className="border-gray-200">
-                    <TableCell className="px-4 py-3 font-semibold text-gray-900">{session.id}</TableCell>
-                    <TableCell className="px-4 py-3 text-gray-700 whitespace-normal">
+                  <TableRow key={session.id} className="border-border">
+                    <TableCell className="neo-mono px-4 py-3 font-black text-foreground">{session.id}</TableCell>
+                    <TableCell className="px-4 py-3 whitespace-normal text-foreground/80">
                       {formatSessionTimeRange(session.startedAt, session.endedAt, session.focusSeconds)}
                     </TableCell>
                     <TableCell className="px-4 py-3">
@@ -482,11 +483,11 @@ export const HistoryWindow = () => {
                   </TableRow>
                 ))}
               </TableBody>
-              <TableFooter className="border-t border-gray-200 bg-white">
+              <TableFooter className="border-t-2 border-border bg-card">
                 <TableRow className="hover:bg-transparent">
                   <TableCell colSpan={3} className="px-4 py-3">
                     <div className="flex flex-wrap items-center justify-between gap-3">
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-muted-foreground">
                         Showing {firstResultIndex} to {lastResultIndex} of {data.total} sessions
                       </p>
                       <div className="flex flex-wrap items-center gap-1">
@@ -504,7 +505,7 @@ export const HistoryWindow = () => {
                         {pageItems.map((item, index) => {
                           if (typeof item !== "number") {
                             return (
-                              <span key={`${item}-${index}`} className="px-2 text-xs text-gray-400">
+                              <span key={`${item}-${index}`} className="px-2 text-xs font-black text-muted-foreground">
                                 …
                               </span>
                             );

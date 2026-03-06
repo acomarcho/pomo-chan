@@ -105,15 +105,21 @@ export const SessionDetailWindow = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white px-4 py-5 text-gray-900">
-      <header className="space-y-2 pb-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-500">Session details</p>
-        <h1 className="text-2xl font-semibold">{sessionId ? `Session ${sessionId}` : "Session"}</h1>
-        <p className="text-sm text-gray-500">Focus usage is captured only while the timer runs.</p>
-        <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
-          <span>Started at {data ? formatTimestamp(data.startedAt) : "-"}</span>
-          <span>Ended at {data ? formatTimestamp(data.endedAt) : "-"}</span>
-          <span>Total focus {formatDuration(totalSeconds ?? Number.NaN)}</span>
+    <div className="window-shell">
+      <header className="window-header">
+        <p className="window-eyebrow">Session details</p>
+        <h1 className="window-title">{sessionId ? `Session ${sessionId}` : "Session"}</h1>
+        <p className="window-subtitle">Focus usage is captured only while the timer runs.</p>
+        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+          <span className="neo-chip neo-mono normal-case tracking-normal font-semibold">
+            Started at {data ? formatTimestamp(data.startedAt) : "-"}
+          </span>
+          <span className="neo-chip neo-mono normal-case tracking-normal font-semibold">
+            Ended at {data ? formatTimestamp(data.endedAt) : "-"}
+          </span>
+          <span className="neo-chip neo-mono normal-case tracking-normal font-semibold">
+            Total focus {formatDuration(totalSeconds ?? Number.NaN)}
+          </span>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" variant="outline" onClick={refresh} disabled={!isAvailable || isLoading}>
@@ -123,61 +129,61 @@ export const SessionDetailWindow = () => {
       </header>
 
       <section className="space-y-4">
-        {error && <div className="text-sm text-red-500">{error}</div>}
-        {isLoading && <div className="text-sm text-gray-500">Loading session data...</div>}
-        {!isAvailable && <div className="text-sm text-gray-500">Session details are unavailable in this window.</div>}
-        {!error && !isLoading && isAvailable && !data && <div className="text-sm text-gray-500">Session not found.</div>}
+        {error && <div className="text-sm font-semibold text-destructive">{error}</div>}
+        {isLoading && <div className="text-sm text-muted-foreground">Loading session data...</div>}
+        {!isAvailable && <div className="text-sm text-muted-foreground">Session details are unavailable in this window.</div>}
+        {!error && !isLoading && isAvailable && !data && <div className="text-sm text-muted-foreground">Session not found.</div>}
 
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="neo-panel">
           <div className="space-y-1">
-            <h2 className="text-sm font-semibold text-gray-900">Application usage summary</h2>
-            <p className="text-xs text-gray-500">Distribution of focus time by application, then window title.</p>
+            <h2 className="text-sm font-black uppercase tracking-[0.08em] text-foreground">Application usage summary</h2>
+            <p className="text-xs text-muted-foreground">Distribution of focus time by application, then window title.</p>
           </div>
           <div className="mt-4 space-y-3">
-            {appTotals.length === 0 && <p className="text-sm text-gray-500">No usage data recorded.</p>}
+            {appTotals.length === 0 && <p className="text-sm text-muted-foreground">No usage data recorded.</p>}
             {appTotals.map((entry) => {
               const total = totalSeconds ?? 0;
               const percent = total > 0 ? (entry.seconds / total) * 100 : 0;
               const hasWindowBreakdown = entry.windows.length > 0;
               const isExpanded = Boolean(expandedApps[entry.appName]);
               return (
-                <div key={entry.appName} className="space-y-1">
-                  <div className="flex items-center justify-between gap-2 text-xs text-gray-600">
+                <div key={entry.appName} className="space-y-2">
+                  <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
                     <div className="min-w-0 flex-1">
                       {hasWindowBreakdown ? (
                         <button
                           type="button"
-                          className="max-w-full truncate text-left font-semibold text-gray-900 hover:text-gray-700"
+                          className="max-w-full cursor-pointer truncate text-left font-black uppercase tracking-[0.08em] text-foreground hover:text-primary"
                           onClick={() => toggleExpandedApp(entry.appName)}
                           title={`${isExpanded ? "Collapse" : "Expand"} ${entry.appName}`}
                         >
                           {isExpanded ? "v" : ">"} {entry.appName}
                         </button>
                       ) : (
-                        <span className="truncate font-semibold text-gray-900" title={entry.appName}>
+                        <span className="truncate font-black uppercase tracking-[0.08em] text-foreground" title={entry.appName}>
                           {entry.appName}
                         </span>
                       )}
                     </div>
-                    <span className="tabular-nums text-gray-500">{formatDuration(entry.seconds)}</span>
+                    <span className="neo-mono font-black text-foreground">{formatDuration(entry.seconds)}</span>
                   </div>
-                  <div className="h-2 w-full rounded-full bg-gray-100">
-                    <div className="h-2 rounded-full bg-gray-900" style={{ width: `${percent}%` }} />
+                  <div className="neo-progress">
+                    <div className="neo-progress-fill" style={{ width: `${percent}%` }} />
                   </div>
                   {hasWindowBreakdown && isExpanded && (
-                    <div className="mt-2 space-y-2 border-l border-gray-200 pl-3">
+                    <div className="mt-2 space-y-2 border-l-2 border-border pl-3">
                       {entry.windows.map((windowEntry) => {
                         const childPercent = entry.seconds > 0 ? (windowEntry.seconds / entry.seconds) * 100 : 0;
                         return (
-                          <div key={`${entry.appName}-${windowEntry.windowTitle}`} className="space-y-1">
-                            <div className="flex items-center justify-between gap-2 text-[11px] text-gray-500">
+                          <div key={`${entry.appName}-${windowEntry.windowTitle}`} className="space-y-1.5">
+                            <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
                               <span className="truncate" title={windowEntry.windowTitle}>
                                 {windowEntry.windowTitle}
                               </span>
-                              <span className="tabular-nums">{formatDuration(windowEntry.seconds)}</span>
+                              <span className="neo-mono text-foreground">{formatDuration(windowEntry.seconds)}</span>
                             </div>
-                            <div className="h-1.5 w-full rounded-full bg-gray-100">
-                              <div className="h-1.5 rounded-full bg-gray-500" style={{ width: `${childPercent}%` }} />
+                            <div className="h-2 w-full border-2 border-border bg-secondary">
+                              <div className="h-full bg-muted-foreground" style={{ width: `${childPercent}%` }} />
                             </div>
                           </div>
                         );
@@ -190,22 +196,22 @@ export const SessionDetailWindow = () => {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="neo-panel">
           <div className="space-y-1">
-            <h2 className="text-sm font-semibold text-gray-900">Detailed timeline</h2>
-            <p className="text-xs text-gray-500">Each row represents a continuous active app interval.</p>
+            <h2 className="text-sm font-black uppercase tracking-[0.08em] text-foreground">Detailed timeline</h2>
+            <p className="text-xs text-muted-foreground">Each row represents a continuous active app interval.</p>
           </div>
-          <div className="mt-4 divide-y divide-gray-200 text-sm">
-            {segments.length === 0 && <div className="py-3 text-gray-500">No intervals recorded for this session.</div>}
+          <div className="mt-4 divide-y-2 divide-border text-sm">
+            {segments.length === 0 && <div className="py-3 text-muted-foreground">No intervals recorded for this session.</div>}
             {segments.map((segment, index) => (
               <div
                 key={`${segment.startedAt}-${segment.endedAt}-${index}`}
-                className="flex items-center justify-between gap-2 py-2"
+                className="flex items-center justify-between gap-3 py-3"
               >
-                <span className="shrink-0 font-medium text-gray-900">
+                <span className="neo-mono shrink-0 font-black text-foreground">
                   {formatTime(segment.startedAt)} - {formatTime(segment.endedAt)}
                 </span>
-                <span className="min-w-0 flex-1 truncate text-right text-gray-600" title={getSegmentLabel(segment)}>
+                <span className="min-w-0 flex-1 truncate text-right text-muted-foreground" title={getSegmentLabel(segment)}>
                   {getSegmentLabel(segment)}
                 </span>
               </div>

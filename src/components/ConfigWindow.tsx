@@ -61,19 +61,19 @@ export const ConfigWindow = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white px-4 py-5 text-gray-900">
-      <header className="space-y-2 pb-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-500">Preferences</p>
-        <h1 className="text-2xl font-semibold">Pomodoro settings</h1>
-        <p className="text-sm text-gray-500">Changes sync across the timer and this window.</p>
+    <div className="window-shell">
+      <header className="window-header">
+        <p className="window-eyebrow">Preferences</p>
+        <h1 className="window-title">Pomodoro settings</h1>
+        <p className="window-subtitle">Changes sync across the timer and this window.</p>
       </header>
 
       <section className="space-y-4">
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="neo-panel">
           <div className="flex items-center justify-between gap-4">
-            <div>
-              <h2 className="text-sm font-semibold text-gray-900">Clock ticking</h2>
-              <p className="text-xs text-gray-500">Play a soft tick while the timer runs.</p>
+            <div className="space-y-1">
+              <h2 className="text-sm font-black uppercase tracking-[0.08em] text-gray-900">Clock ticking</h2>
+              <p className="text-xs text-muted-foreground">Play a soft tick while the timer runs.</p>
             </div>
             <Switch
               checked={config.playTick}
@@ -83,11 +83,11 @@ export const ConfigWindow = () => {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="neo-panel">
           <div className="flex items-start justify-between gap-4">
-            <div>
-              <h2 className="text-sm font-semibold text-gray-900">Voice language</h2>
-              <p className="text-xs text-gray-500">Start and end announcements.</p>
+            <div className="space-y-1">
+              <h2 className="text-sm font-black uppercase tracking-[0.08em] text-gray-900">Voice language</h2>
+              <p className="text-xs text-muted-foreground">Start and end announcements.</p>
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -108,17 +108,17 @@ export const ConfigWindow = () => {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="neo-panel">
           <div className="space-y-3">
-            <div>
-              <h2 className="text-sm font-semibold text-gray-900">Session lengths</h2>
-              <p className="text-xs text-gray-500">
+            <div className="space-y-1">
+              <h2 className="text-sm font-black uppercase tracking-[0.08em] text-gray-900">Session lengths</h2>
+              <p className="text-xs text-muted-foreground">
                 Adjust focus and break minutes ({MIN_TIMER_MINUTES}-{MAX_TIMER_MINUTES}).
               </p>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <label className="space-y-1.5 text-xs font-semibold text-gray-500">
-                <span className="block text-gray-600">Focus</span>
+              <label className="space-y-2 text-xs font-black uppercase tracking-[0.12em] text-muted-foreground">
+                <span className="block text-foreground">Focus</span>
                 <Input
                   type="number"
                   min={MIN_TIMER_MINUTES}
@@ -128,10 +128,11 @@ export const ConfigWindow = () => {
                   onChange={handleMinutesChange("focusMinutes")}
                   onBlur={handleMinutesBlur("focusMinutes")}
                   aria-label="Focus minutes"
+                  className="neo-mono"
                 />
               </label>
-              <label className="space-y-1.5 text-xs font-semibold text-gray-500">
-                <span className="block text-gray-600">Break</span>
+              <label className="space-y-2 text-xs font-black uppercase tracking-[0.12em] text-muted-foreground">
+                <span className="block text-foreground">Break</span>
                 <Input
                   type="number"
                   min={MIN_TIMER_MINUTES}
@@ -141,26 +142,29 @@ export const ConfigWindow = () => {
                   onChange={handleMinutesChange("breakMinutes")}
                   onBlur={handleMinutesBlur("breakMinutes")}
                   aria-label="Break minutes"
+                  className="neo-mono"
                 />
               </label>
             </div>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="neo-panel">
           <div className="space-y-3">
-            <div>
-              <h2 className="text-sm font-semibold text-gray-900">Ambient sounds</h2>
-              <p className="text-xs text-gray-500">Plays while the timer is running.</p>
+            <div className="space-y-1">
+              <h2 className="text-sm font-black uppercase tracking-[0.08em] text-gray-900">Ambient sounds</h2>
+              <p className="text-xs text-muted-foreground">Plays while the timer is running.</p>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-4">
               {AMBIENT_SOUNDS.map((sound) => {
                 const value = ambientVolumes[sound];
                 return (
-                  <div key={sound} className="space-y-1.5">
-                    <div className="flex items-center justify-between text-xs text-gray-600">
-                      <span className="font-semibold text-gray-900">{AMBIENT_SOUND_LABELS[sound]}</span>
-                      <span className="tabular-nums text-gray-500">{value}%</span>
+                  <div key={sound} className="space-y-2">
+                    <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                      <span className="font-black uppercase tracking-[0.12em] text-foreground">
+                        {AMBIENT_SOUND_LABELS[sound]}
+                      </span>
+                      <span className="neo-mono font-black text-foreground">{value}%</span>
                     </div>
                     <input
                       type="range"
@@ -169,7 +173,7 @@ export const ConfigWindow = () => {
                       step={1}
                       value={value}
                       onChange={(event) => handleAmbientChange(sound, Number(event.target.value))}
-                      className="h-2 w-full cursor-pointer accent-gray-900"
+                      className="neo-range"
                       aria-label={`${AMBIENT_SOUND_LABELS[sound]} volume`}
                     />
                   </div>

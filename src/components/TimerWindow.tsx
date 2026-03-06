@@ -326,16 +326,20 @@ const Live2DStage = ({ activeWindowTitle, activeAppOwner, showActiveApp, voiceAu
   }, [setupVoiceAudio, voiceAudioSignal?.token]);
 
   return (
-    <div className="relative flex h-65 w-full max-w-3xl items-center justify-center overflow-hidden rounded-2xl bg-gray-200 sm:h-75">
+    <div className="neo-surface relative flex h-65 w-full max-w-3xl items-center justify-center overflow-hidden bg-[linear-gradient(180deg,#fffaf0_0%,#eae5d9_100%)] sm:h-75">
       {/* Live2D canvas mounts into this container. */}
-      {!isLoaded && <span className="pointer-events-none relative z-10 text-sm font-medium text-gray-500">Loading model...</span>}
+      {!isLoaded && (
+        <span className="pointer-events-none relative z-10 text-sm font-black uppercase tracking-[0.18em] text-muted-foreground">
+          Loading model...
+        </span>
+      )}
       {showActiveApp && (
-        <div className="absolute bottom-3 left-3 z-10 flex max-w-[70%] flex-col gap-0.5 rounded-lg bg-white/90 px-3 py-1.5 text-[0.65rem] font-semibold text-gray-600 shadow-sm backdrop-blur">
+        <div className="neo-chip absolute bottom-3 left-3 z-10 flex max-w-[70%] flex-col items-start gap-0.5 bg-card px-3 py-2 text-[10px] text-muted-foreground">
           <div className="flex items-center gap-2">
             <span className="uppercase tracking-[0.2em]">Active app</span>
-            <span className="truncate text-[0.7rem] font-medium text-gray-900">{activeAppOwner || "Unknown"}</span>
+            <span className="truncate text-[11px] font-black text-foreground">{activeAppOwner || "Unknown"}</span>
           </div>
-          {activeWindowTitle && <span className="truncate text-[0.6rem] text-gray-500">{activeWindowTitle}</span>}
+          {activeWindowTitle && <span className="truncate text-[10px] text-muted-foreground">{activeWindowTitle}</span>}
         </div>
       )}
       <div ref={containerRef} className="absolute inset-0" />
@@ -510,12 +514,12 @@ export const TimerWindow = () => {
   }, [endFocusSessionEarly]);
 
   return (
-    <div className="flex min-h-screen flex-col bg-white px-4 py-4 text-gray-900">
+    <div className="window-shell flex flex-col py-4">
       <div className="fixed right-3 top-3 z-20 flex items-center gap-2">
         <Button
-          variant="ghost"
+          variant="outline"
           size="icon-sm"
-          className="rounded-full bg-white/90 text-gray-600 shadow-sm backdrop-blur"
+          className="bg-card text-foreground"
           onClick={openHistoryWindow}
           disabled={!isHistoryAvailable}
           aria-label="Open session history"
@@ -523,16 +527,16 @@ export const TimerWindow = () => {
           <History />
         </Button>
         <Button
-          variant="ghost"
+          variant="outline"
           size="icon-sm"
-          className="rounded-full bg-white/90 text-gray-600 shadow-sm backdrop-blur"
+          className="bg-card text-foreground"
           onClick={openConfigWindow}
           disabled={!isConfigAvailable}
           aria-label="Open settings"
         >
           <Settings2 />
         </Button>
-        <div className="flex items-center gap-2 rounded-full bg-white/90 px-3 py-1.5 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-gray-600 shadow-sm backdrop-blur">
+        <div className="neo-chip gap-3 bg-card px-3 py-2 text-[10px] text-muted-foreground">
           <span>Always on top</span>
           <Switch
             checked={isAlwaysOnTop}
@@ -553,30 +557,25 @@ export const TimerWindow = () => {
       </section>
 
       <div className="flex flex-1 flex-col justify-center">
-        <section className="text-center">
-          <h2 className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-500">{MODES[mode].label} Timer</h2>
-          <h1 className="mt-2 text-[clamp(2.4rem,6.5vw,4rem)] font-semibold leading-none tabular-nums" aria-live="polite">
+        <section className="neo-panel mx-auto w-full max-w-md text-center">
+          <h2 className="window-eyebrow">{MODES[mode].label} Timer</h2>
+          <h1 className="neo-mono mt-2 text-[clamp(2.8rem,7vw,4.5rem)] font-black leading-none tabular-nums" aria-live="polite">
             {formattedTime}
           </h1>
         </section>
 
-        <section className="flex items-center justify-center gap-3 pb-2 pt-4">
-          <Button className="rounded-full px-6 py-2.5 text-sm font-semibold" type="button" onClick={toggleRunning}>
+        <section className="flex items-center justify-center gap-3 pb-2 pt-5">
+          <Button className="px-6" type="button" onClick={toggleRunning}>
             {primaryLabel}
           </Button>
-          <Button
-            className="rounded-full px-6 py-2.5 text-sm font-semibold"
-            variant="outline"
-            type="button"
-            onClick={requestModeSwitch}
-          >
+          <Button className="px-6" variant="outline" type="button" onClick={requestModeSwitch}>
             {switchLabel}
           </Button>
         </section>
         {canEndSessionEarly && (
           <section className="flex items-center justify-center pb-2">
             <Button
-              className="rounded-full px-4 py-2 text-sm font-semibold text-destructive hover:bg-destructive/10 hover:text-destructive"
+              className="border-2 border-destructive bg-transparent px-4 text-destructive shadow-[4px_4px_0_0_var(--color-destructive)] hover:bg-destructive/10 hover:shadow-[6px_6px_0_0_var(--color-destructive)] active:shadow-none"
               variant="ghost"
               type="button"
               onClick={requestEndSessionEarly}
