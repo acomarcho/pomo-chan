@@ -4,6 +4,7 @@ import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import Store from "electron-store";
+import { log } from "./logger";
 
 const execFileAsync = promisify(execFile);
 
@@ -19,7 +20,8 @@ const getActiveWindowNative = async (): Promise<{
     const { stdout } = await execFileAsync(getWindowsBinary);
     if (!stdout.trim()) return null;
     return JSON.parse(stdout);
-  } catch {
+  } catch (error) {
+    log.error("get-windows binary failed", error);
     return null;
   }
 };
@@ -35,6 +37,7 @@ const getActiveAppInfo = async (): Promise<ActiveAppInfo> => {
       ownerName: win.owner?.name || ""
     };
   } catch (error) {
+    log.error("getActiveAppInfo failed", error);
     return {
       title: "",
       ownerName: "",
@@ -418,7 +421,7 @@ ipcMain.handle("sessions:clear", () => {
     const count = clearSessions();
     return { ok: true, count } as const;
   } catch (error) {
-    console.error("Failed to clear sessions", error);
+    log.error("Failed to clear sessions", error);
     return { ok: false, reason: "write-failed" } as const;
   }
 });
@@ -521,7 +524,7 @@ ipcMain.handle("sessions:export", async () => {
     await fs.writeFile(filePath, JSON.stringify(payload, null, 2), "utf8");
     return { ok: true, count: sessions.length, filePath } as const;
   } catch (error) {
-    console.error("Failed to export sessions", error);
+    log.error("Failed to export sessions", error);
     return { ok: false, reason: "write-failed" } as const;
   }
 });
@@ -541,7 +544,7 @@ ipcMain.handle("sessions:import", async (_event, options?: { mode?: SessionImpor
   try {
     raw = await fs.readFile(filePaths[0], "utf8");
   } catch (error) {
-    console.error("Failed to read sessions file", error);
+    log.error("Failed to read sessions file", error);
     return { ok: false, reason: "read-failed" } as const;
   }
 
@@ -549,7 +552,7 @@ ipcMain.handle("sessions:import", async (_event, options?: { mode?: SessionImpor
   try {
     parsed = JSON.parse(raw);
   } catch (error) {
-    console.error("Failed to parse sessions file", error);
+    log.error("Failed to parse sessions file", error);
     return { ok: false, reason: "invalid-format" } as const;
   }
 
@@ -569,12 +572,30 @@ ipcMain.handle("sessions:import", async (_event, options?: { mode?: SessionImpor
     }
     return { ok: true, count } as const;
   } catch (error) {
-    console.error("Failed to import sessions", error);
+    log.error("Failed to import sessions", error);
     return { ok: false, reason: "write-failed" } as const;
   }
 });
 
-app.on("ready", createWindow);
+app.on("ready", () => {
+  log.info("App started", {
+    version: app.getVersion(),
+    packaged: app.isPackaged,
+    platform: process.platform,
+    arch: process.arch
+  });
+
+  // Permission health check — log whether get-windows binary works on launch
+  getActiveWindowNative().then((result) => {
+    if (result) {
+      log.info("Permission check passed", { owner: result.owner?.name, title: result.title });
+    } else {
+      log.warn("Permission check returned null — active window detection may not work");
+    }
+  });
+
+  createWindow();
+});
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
@@ -583,6 +604,7 @@ app.on("window-all-closed", () => {
 });
 
 app.on("before-quit", () => {
+  log.info("App quitting");
   closeSessionStore();
 });
 
