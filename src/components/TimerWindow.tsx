@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import * as PIXI from "pixi.js";
 import { Live2DModel } from "pixi-live2d-display";
+import truncate from "lodash/truncate";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
@@ -31,7 +32,8 @@ const LIP_SYNC_RELEASE = 0.3;
 const normalizeAppName = (value: string) => value.trim() || "Unknown";
 const normalizeWindowTitle = (value: string) => {
   const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
+  if (trimmed.length === 0) return null;
+  return truncate(trimmed, { length: 50 });
 };
 
 const calculateFocusSeconds = (segments: SessionAppUsage[]) => {
@@ -340,8 +342,8 @@ const Live2DStage = ({ activeWindowTitle, activeAppOwner, showActiveApp, voiceAu
             <span className="min-w-0 truncate text-[11px] font-black text-foreground">{activeAppOwner || "Unknown"}</span>
           </div>
           {activeWindowTitle && (
-            <span className="block max-w-full break-words text-[10px] leading-tight text-muted-foreground">
-              {activeWindowTitle}
+            <span className="block max-w-full truncate text-[10px] leading-tight text-muted-foreground" title={activeWindowTitle}>
+              {normalizeWindowTitle(activeWindowTitle) ?? activeWindowTitle}
             </span>
           )}
         </div>
