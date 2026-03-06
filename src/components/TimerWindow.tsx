@@ -334,12 +334,16 @@ const Live2DStage = ({ activeWindowTitle, activeAppOwner, showActiveApp, voiceAu
         </span>
       )}
       {showActiveApp && (
-        <div className="neo-chip absolute bottom-3 left-3 z-10 flex max-w-[70%] flex-col items-start gap-0.5 bg-card px-3 py-2 text-[10px] text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <span className="uppercase tracking-[0.2em]">Active app</span>
-            <span className="truncate text-[11px] font-black text-foreground">{activeAppOwner || "Unknown"}</span>
+        <div className="neo-chip absolute bottom-3 left-3 z-10 flex max-w-[82%] flex-col items-start gap-0.5 bg-card px-3 py-2 text-[10px] text-muted-foreground">
+          <div className="flex w-full items-center gap-2">
+            <span className="shrink-0 whitespace-nowrap uppercase tracking-[0.2em]">Active app</span>
+            <span className="min-w-0 truncate text-[11px] font-black text-foreground">{activeAppOwner || "Unknown"}</span>
           </div>
-          {activeWindowTitle && <span className="truncate text-[10px] text-muted-foreground">{activeWindowTitle}</span>}
+          {activeWindowTitle && (
+            <span className="block max-w-full break-words text-[10px] leading-tight text-muted-foreground">
+              {activeWindowTitle}
+            </span>
+          )}
         </div>
       )}
       <div ref={containerRef} className="absolute inset-0" />
