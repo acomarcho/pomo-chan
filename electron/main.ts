@@ -20,8 +20,14 @@ const getActiveWindowNative = async (): Promise<{
     const { stdout } = await execFileAsync(getWindowsBinary);
     if (!stdout.trim()) return null;
     return JSON.parse(stdout);
-  } catch (error) {
-    log.error("get-windows binary failed", error);
+  } catch (error: unknown) {
+    const execError = error as { code?: number | string; signal?: string; stderr?: string; killed?: boolean };
+    log.error("get-windows binary failed", {
+      code: execError.code,
+      signal: execError.signal,
+      killed: execError.killed,
+      stderr: execError.stderr?.trim() || "(empty)"
+    });
     return null;
   }
 };
