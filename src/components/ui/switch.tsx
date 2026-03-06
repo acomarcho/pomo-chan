@@ -14,7 +14,7 @@ function Switch({
       data-slot="switch"
       data-size={size}
       className={cn(
-        "peer group/switch relative inline-flex shrink-0 items-center border-2 border-border bg-card outline-none transition-[transform,box-shadow,background-color] duration-100 data-checked:bg-primary focus-visible:ring-[3px] focus-visible:ring-ring/25 data-disabled:cursor-not-allowed data-disabled:opacity-50 data-[size=default]:h-7 data-[size=default]:w-12 data-[size=sm]:h-6 data-[size=sm]:w-10",
+        "peer group/switch relative inline-flex shrink-0 cursor-pointer items-center border-2 border-border bg-card outline-none transition-[transform,box-shadow,background-color] duration-100 data-checked:bg-primary focus-visible:ring-[3px] focus-visible:ring-ring/25 data-disabled:cursor-not-allowed data-disabled:opacity-50 data-[size=default]:h-7 data-[size=default]:w-12 data-[size=sm]:h-6 data-[size=sm]:w-10",
         className
       )}
       style={{ boxShadow: "var(--shadow-elevated)" }}
