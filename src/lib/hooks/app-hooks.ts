@@ -44,6 +44,7 @@ type SessionAPI = {
   list?: (value: { page: number; pageSize: number; startDate?: string; endDate?: string }) => Promise<SessionList>;
   detail?: (value: { id: number }) => Promise<SessionDetail | null>;
   summary?: () => Promise<SessionFocusSummary>;
+  delete?: (value: { id: number }) => Promise<{ ok: boolean }>;
   export?: () => Promise<SessionTransferResult>;
   import?: (value: { mode: SessionImportMode }) => Promise<SessionTransferResult>;
   clear?: () => Promise<SessionTransferResult>;

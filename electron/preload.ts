@@ -66,6 +66,7 @@ const sessions = {
   summary: () => ipcRenderer.invoke("sessions:summary") as Promise<SessionFocusSummary>,
   export: () => ipcRenderer.invoke("sessions:export") as Promise<SessionTransferResult>,
   import: (value: { mode: SessionImportMode }) => ipcRenderer.invoke("sessions:import", value) as Promise<SessionTransferResult>,
+  delete: (value: { id: number }) => ipcRenderer.invoke("sessions:delete", value) as Promise<{ ok: boolean }>,
   clear: () => ipcRenderer.invoke("sessions:clear") as Promise<SessionTransferResult>
 };
 
