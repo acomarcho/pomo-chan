@@ -89,7 +89,7 @@ export const ConfigWindow = () => {
               <h2 className="text-sm font-black uppercase tracking-[0.08em] text-gray-900">Voice language</h2>
               <p className="text-xs text-muted-foreground">Start and end announcements.</p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col items-stretch gap-2">
               <Button
                 size="sm"
                 variant={config.audioLanguage === "en" ? "default" : "outline"}
