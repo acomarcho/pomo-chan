@@ -107,6 +107,7 @@ export const HistoryWindow = () => {
   const [isTransferring, setIsTransferring] = useState(false);
   const [showImportConfirm, setShowImportConfirm] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
   const [importMode, setImportMode] = useState<SessionImportMode>("merge");
 
   const totalPages = useMemo(() => {
@@ -386,6 +387,44 @@ export const HistoryWindow = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        <Dialog
+          open={deleteTarget !== null}
+          onOpenChange={(open) => {
+            if (!open) setDeleteTarget(null);
+          }}
+        >
+          <DialogContent className="text-left">
+            <DialogHeader>
+              <DialogTitle>Delete session #{deleteTarget}?</DialogTitle>
+              <DialogDescription>
+                This will permanently delete this session and its app usage data. This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" type="button" onClick={() => setDeleteTarget(null)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                type="button"
+                onClick={async () => {
+                  const id = deleteTarget;
+                  setDeleteTarget(null);
+                  try {
+                    await window.electronAPI?.sessions?.delete?.({ id: id! });
+                    toast.success("Session deleted.");
+                    void refresh();
+                    void refreshSummary();
+                  } catch {
+                    toast.error("Failed to delete session.");
+                  }
+                }}
+              >
+                Delete
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <div className="neo-toolbar">
           <Popover>
@@ -484,16 +523,7 @@ export const HistoryWindow = () => {
                           size="sm"
                           variant="outline"
                           className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                          onClick={async () => {
-                            try {
-                              await window.electronAPI?.sessions?.delete?.({ id: session.id });
-                              toast.success("Session deleted.");
-                              void refresh();
-                              void refreshSummary();
-                            } catch {
-                              toast.error("Failed to delete session.");
-                            }
-                          }}
+                          onClick={() => setDeleteTarget(session.id)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
