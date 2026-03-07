@@ -45,6 +45,11 @@ func getActiveWindow() -> WindowInfo? {
 
 let encoder = JSONEncoder()
 
+// Print permission status on startup before entering the read loop.
+let hasScreenRecording = CGPreflightScreenCaptureAccess()
+print("{\"ready\":true,\"screenRecording\":\(hasScreenRecording)}")
+fflush(stdout)
+
 // Read stdin on a background thread so the main run loop stays alive
 // for NSWorkspace to track app switches.
 DispatchQueue.global().async {

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, screen } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, screen, shell } from "electron";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { spawn, type ChildProcess } from "node:child_process";
@@ -23,37 +23,53 @@ const killActiveWindowProc = () => {
   }
 };
 
-const spawnActiveWindowProc = () => {
-  if (activeWindowProc) return;
+const spawnActiveWindowProc = (): Promise<{ screenRecording: boolean }> => {
+  if (activeWindowProc) return Promise.resolve({ screenRecording: true });
 
-  try {
-    const proc = spawn(activeWindowBinary, { stdio: ["pipe", "pipe", "pipe"] });
-    activeWindowProc = proc;
+  return new Promise((resolveStatus) => {
+    try {
+      const proc = spawn(activeWindowBinary, { stdio: ["pipe", "pipe", "pipe"] });
+      activeWindowProc = proc;
 
-    const rl = createInterface({ input: proc.stdout! });
-    rl.on("line", (line) => {
-      const resolve = responseQueue.shift();
-      if (resolve) resolve(line);
-    });
+      let gotStatus = false;
+      const rl = createInterface({ input: proc.stdout! });
+      rl.on("line", (line) => {
+        if (!gotStatus) {
+          gotStatus = true;
+          try {
+            const status = JSON.parse(line);
+            resolveStatus({ screenRecording: Boolean(status.screenRecording) });
+          } catch {
+            resolveStatus({ screenRecording: false });
+          }
+          return;
+        }
+        const resolve = responseQueue.shift();
+        if (resolve) resolve(line);
+      });
 
-    proc.stderr!.on("data", (chunk: Buffer) => {
-      log.warn("active-window stderr", chunk.toString().trim());
-    });
+      proc.stderr!.on("data", (chunk: Buffer) => {
+        log.warn("active-window stderr", chunk.toString().trim());
+      });
 
-    proc.on("exit", (code, signal) => {
-      log.warn("active-window process exited", { code, signal });
-      killActiveWindowProc();
-    });
+      proc.on("exit", (code, signal) => {
+        log.warn("active-window process exited", { code, signal });
+        killActiveWindowProc();
+        if (!gotStatus) resolveStatus({ screenRecording: false });
+      });
 
-    proc.on("error", (error) => {
-      log.error("active-window process error", error);
-      killActiveWindowProc();
-    });
+      proc.on("error", (error) => {
+        log.error("active-window process error", error);
+        killActiveWindowProc();
+        if (!gotStatus) resolveStatus({ screenRecording: false });
+      });
 
-    log.info("active-window process spawned");
-  } catch (error) {
-    log.error("Failed to spawn active-window process", error);
-  }
+      log.info("active-window process spawned");
+    } catch (error) {
+      log.error("Failed to spawn active-window process", error);
+      resolveStatus({ screenRecording: false });
+    }
+  });
 };
 
 const getActiveWindowNative = async (): Promise<{
@@ -62,7 +78,7 @@ const getActiveWindowNative = async (): Promise<{
 } | null> => {
   if (activeWindowPending) return null;
   if (!activeWindowProc) {
-    spawnActiveWindowProc();
+    await spawnActiveWindowProc();
     if (!activeWindowProc) return null;
   }
 
@@ -659,16 +675,30 @@ app.on("ready", () => {
     arch: process.arch
   });
 
-  // Health check — log whether active window detection works on launch
-  getActiveWindowNative().then((result) => {
-    if (result) {
-      log.info("Permission check passed", { owner: result.owner?.name, title: result.title });
-    } else {
-      log.warn("Permission check returned null — active window detection may not work");
+  createWindow();
+
+  // Spawn the active window binary and check permissions
+  spawnActiveWindowProc().then(({ screenRecording }) => {
+    log.info("active-window permissions", { screenRecording });
+    if (!screenRecording && mainWindow && !mainWindow.isDestroyed()) {
+      dialog
+        .showMessageBox(mainWindow, {
+          type: "info",
+          buttons: ["Open System Settings", "Later"],
+          defaultId: 0,
+          cancelId: 1,
+          title: "Screen Recording Permission",
+          message: "Pomo-chan needs Screen Recording permission to detect active window titles.",
+          detail:
+            "Without this permission, the app can still detect which app is active, but window titles will be empty.\n\nGo to System Settings → Privacy & Security → Screen Recording and enable Pomo-chan."
+        })
+        .then(({ response }) => {
+          if (response === 0) {
+            shell.openExternal("x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture");
+          }
+        });
     }
   });
-
-  createWindow();
 });
 
 app.on("window-all-closed", () => {
