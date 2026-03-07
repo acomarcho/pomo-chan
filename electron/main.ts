@@ -7,6 +7,7 @@ import Store from "electron-store";
 import { log } from "./logger";
 import type { AppConfig, IpcInvokeContract, IpcRendererEventContract, IpcSendContract } from "../src/shared/electron-contract";
 import { IPC } from "../src/shared/electron-contract";
+import { migrateSessionDatabase } from "./db/migrate";
 
 const activeWindowBinary = app.isPackaged
   ? path.join(process.resourcesPath, "active-window")
@@ -679,13 +680,22 @@ handle(IPC.sessions.import, async (_event, options) => {
   }
 });
 
-app.on("ready", () => {
+app.on("ready", async () => {
   log.info("App started", {
     version: app.getVersion(),
     packaged: app.isPackaged,
     platform: process.platform,
     arch: process.arch
   });
+
+  try {
+    migrateSessionDatabase();
+  } catch (error) {
+    log.error("Failed to migrate session database", error);
+    dialog.showErrorBox("Database Error", "Pomo-chan could not initialize its local database. Check the logs for more details.");
+    app.quit();
+    return;
+  }
 
   createWindow();
 

@@ -1,8 +1,6 @@
-import { app } from "electron";
-import fs from "node:fs";
-import path from "node:path";
-import Database from "better-sqlite3";
+import { and, asc, desc, eq, gte, lte, sql, type SQL } from "drizzle-orm";
 
+import { sessionAppUsage, sessions } from "../src/db/schema";
 import type {
   SessionAppUsage,
   SessionDetail,
@@ -11,25 +9,7 @@ import type {
   SessionRecord,
   SessionFocusSummary
 } from "../src/lib/session-types";
-
-let db: Database.Database | null = null;
-let didApplyFreshStart = false;
-
-const ensureFocusSecondsColumn = (database: Database.Database) => {
-  const columns = database.prepare("PRAGMA table_info(sessions)").all() as Array<{ name: string }>;
-  const hasFocusSeconds = columns.some((column) => column.name === "focus_seconds");
-  if (!hasFocusSeconds) {
-    database.exec("ALTER TABLE sessions ADD COLUMN focus_seconds INTEGER");
-  }
-};
-
-const ensureWindowTitleColumn = (database: Database.Database) => {
-  const columns = database.prepare("PRAGMA table_info(session_app_usage)").all() as Array<{ name: string }>;
-  const hasWindowTitle = columns.some((column) => column.name === "window_title");
-  if (!hasWindowTitle) {
-    database.exec("ALTER TABLE session_app_usage ADD COLUMN window_title TEXT");
-  }
-};
+import { closeSessionDatabase, getSessionDatabase } from "./db/client";
 
 const calculateFocusSeconds = (segments: SessionAppUsage[]) => {
   return segments.reduce((total, segment) => {
@@ -43,86 +23,88 @@ const calculateFocusSeconds = (segments: SessionAppUsage[]) => {
   }, 0);
 };
 
-const ensureDb = () => {
-  if (db) return db;
-  const dbPath = path.join(app.getPath("userData"), "pomo-chan.sqlite");
-  if (!didApplyFreshStart) {
-    didApplyFreshStart = true;
-    if (process.env.FRESH_START === "1") {
-      fs.rmSync(dbPath, { force: true });
-      fs.rmSync(`${dbPath}-wal`, { force: true });
-      fs.rmSync(`${dbPath}-shm`, { force: true });
-    }
+const createDateRangeFilter = (
+  dateRange?: { startDate?: string; endDate?: string },
+  column: typeof sessions.startedAt = sessions.startedAt
+): SQL<unknown> | undefined => {
+  const conditions: SQL<unknown>[] = [];
+
+  if (dateRange?.startDate) {
+    conditions.push(gte(column, dateRange.startDate));
   }
-  db = new Database(dbPath);
-  db.pragma("journal_mode = WAL");
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS sessions (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      started_at TEXT NOT NULL,
-      ended_at TEXT NOT NULL,
-      focus_seconds INTEGER
-    );
-  `);
-  ensureFocusSecondsColumn(db);
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS session_app_usage (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      session_id INTEGER NOT NULL,
-      app_name TEXT NOT NULL,
-      window_title TEXT,
-      started_at TEXT NOT NULL,
-      ended_at TEXT NOT NULL,
-      FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE
-    );
-  `);
-  ensureWindowTitleColumn(db);
-  db.exec("CREATE INDEX IF NOT EXISTS session_app_usage_session_id ON session_app_usage(session_id)");
-  return db;
+
+  if (dateRange?.endDate) {
+    conditions.push(lte(column, dateRange.endDate));
+  }
+
+  if (conditions.length === 0) {
+    return undefined;
+  }
+
+  return conditions.length === 1 ? conditions[0] : and(...conditions);
 };
 
-const getFocusSecondsBetween = (database: Database.Database, startIso: string, endIso: string) => {
+const getFocusSecondsBetween = (startIso: string, endIso: string) => {
+  const database = getSessionDatabase();
   const row = database
-    .prepare(
-      `
-      SELECT
-        COALESCE(
-          SUM(
-            COALESCE(
-              focus_seconds,
-              CAST(strftime('%s', ended_at) AS INTEGER) -
-              CAST(strftime('%s', started_at) AS INTEGER)
+    .select({
+      total: sql<number>`
+        coalesce(
+          sum(
+            coalesce(
+              ${sessions.focusSeconds},
+              cast(strftime('%s', ${sessions.endedAt}) as integer) -
+              cast(strftime('%s', ${sessions.startedAt}) as integer)
             )
           ),
           0
-        ) AS total
-      FROM sessions
-      WHERE started_at >= ? AND started_at <= ?
+        )
       `
-    )
-    .get(startIso, endIso) as { total: number } | undefined;
-  const total = Number(row?.total ?? 0);
-  return Math.max(0, total);
+    })
+    .from(sessions)
+    .where(and(gte(sessions.startedAt, startIso), lte(sessions.startedAt, endIso)))
+    .get();
+
+  return Math.max(0, Number(row?.total ?? 0));
+};
+
+const insertSessionGraph = (record: SessionRecord) => {
+  const database = getSessionDatabase();
+  const focusSeconds = record.focusSeconds ?? (record.appUsage ? calculateFocusSeconds(record.appUsage) : null);
+
+  return database.transaction((tx) => {
+    const inserted = tx
+      .insert(sessions)
+      .values({
+        startedAt: record.startedAt,
+        endedAt: record.endedAt,
+        focusSeconds
+      })
+      .returning({ id: sessions.id })
+      .get();
+
+    const sessionId = Number(inserted.id);
+
+    if (record.appUsage && record.appUsage.length > 0) {
+      tx.insert(sessionAppUsage)
+        .values(
+          record.appUsage.map((segment) => ({
+            sessionId,
+            appName: segment.appName,
+            windowTitle: segment.windowTitle ?? null,
+            startedAt: segment.startedAt,
+            endedAt: segment.endedAt
+          }))
+        )
+        .run();
+    }
+
+    return sessionId;
+  });
 };
 
 export const addSession = (record: SessionRecord) => {
-  const database = ensureDb();
-  const focusSeconds = record.focusSeconds ?? (record.appUsage ? calculateFocusSeconds(record.appUsage) : null);
-  const insertSession = database.prepare("INSERT INTO sessions (started_at, ended_at, focus_seconds) VALUES (?, ?, ?)");
-  const info = insertSession.run(record.startedAt, record.endedAt, focusSeconds);
-  const sessionId = Number(info.lastInsertRowid);
-  if (record.appUsage && record.appUsage.length > 0) {
-    const insertUsage = database.prepare(
-      "INSERT INTO session_app_usage (session_id, app_name, window_title, started_at, ended_at) VALUES (?, ?, ?, ?, ?)"
-    );
-    const insertMany = database.transaction((segments: SessionAppUsage[]) => {
-      for (const segment of segments) {
-        insertUsage.run(sessionId, segment.appName, segment.windowTitle ?? null, segment.startedAt, segment.endedAt);
-      }
-    });
-    insertMany(record.appUsage);
-  }
-  return sessionId;
+  return insertSessionGraph(record);
 };
 
 export const listSessions = (
@@ -130,92 +112,70 @@ export const listSessions = (
   pageSize: number,
   dateRange?: { startDate?: string; endDate?: string }
 ): SessionList => {
-  const database = ensureDb();
+  const database = getSessionDatabase();
   const safePage = Number.isFinite(page) && page > 0 ? page : 1;
   const safePageSize = Number.isFinite(pageSize) && pageSize > 0 ? pageSize : 10;
   const offset = (safePage - 1) * safePageSize;
+  const dateFilter = createDateRangeFilter(dateRange);
 
-  const hasDateFilter = dateRange?.startDate || dateRange?.endDate;
-  const whereClause = hasDateFilter ? `WHERE started_at >= ? AND started_at <= ?` : "";
+  const rows = (
+    dateFilter
+      ? database
+          .select({
+            id: sessions.id,
+            startedAt: sessions.startedAt,
+            endedAt: sessions.endedAt,
+            focusSeconds: sessions.focusSeconds,
+            hasUsage: sql<number>`cast(exists(select 1 from ${sessionAppUsage} where ${sessionAppUsage.sessionId} = ${sessions.id} limit 1) as integer)`
+          })
+          .from(sessions)
+          .where(dateFilter)
+          .orderBy(desc(sessions.startedAt))
+          .limit(safePageSize)
+          .offset(offset)
+      : database
+          .select({
+            id: sessions.id,
+            startedAt: sessions.startedAt,
+            endedAt: sessions.endedAt,
+            focusSeconds: sessions.focusSeconds,
+            hasUsage: sql<number>`cast(exists(select 1 from ${sessionAppUsage} where ${sessionAppUsage.sessionId} = ${sessions.id} limit 1) as integer)`
+          })
+          .from(sessions)
+          .orderBy(desc(sessions.startedAt))
+          .limit(safePageSize)
+          .offset(offset)
+  ).all();
 
-  const rows = database
-    .prepare(
-      `
-      SELECT
-        sessions.id AS id,
-        sessions.started_at AS startedAt,
-        sessions.ended_at AS endedAt,
-        sessions.focus_seconds AS focusSeconds,
-        EXISTS (
-          SELECT 1 FROM session_app_usage
-          WHERE session_app_usage.session_id = sessions.id
-          LIMIT 1
-        ) AS hasUsage
-      FROM sessions
-      ${whereClause}
-      ORDER BY sessions.started_at DESC
-      LIMIT ? OFFSET ?
-      `
-    )
-    .bind(
-      ...(hasDateFilter
-        ? [dateRange!.startDate ?? "0000-01-01T00:00:00.000Z", dateRange!.endDate ?? "9999-12-31T23:59:59.999Z"]
-        : []),
-      safePageSize,
-      offset
-    )
-    .all() as Array<{
-    id: number;
-    startedAt: string;
-    endedAt: string;
-    focusSeconds: number | null;
-    hasUsage: number;
-  }>;
+  const totalRow = (
+    dateFilter
+      ? database
+          .select({ count: sql<number>`cast(count(*) as integer)` })
+          .from(sessions)
+          .where(dateFilter)
+      : database.select({ count: sql<number>`cast(count(*) as integer)` }).from(sessions)
+  ).get();
 
-  const items = rows.map((row) => ({
+  const items: SessionEntry[] = rows.map((row) => ({
     id: row.id,
     startedAt: row.startedAt,
     endedAt: row.endedAt,
     focusSeconds: typeof row.focusSeconds === "number" ? row.focusSeconds : null,
     hasUsage: Boolean(row.hasUsage)
-  })) as SessionEntry[];
+  }));
 
-  const totalRow = database
-    .prepare(`SELECT COUNT(*) AS count FROM sessions ${whereClause}`)
-    .bind(
-      ...(hasDateFilter
-        ? [dateRange!.startDate ?? "0000-01-01T00:00:00.000Z", dateRange!.endDate ?? "9999-12-31T23:59:59.999Z"]
-        : [])
-    )
-    .get() as { count: number };
-
-  return { items, total: Number(totalRow.count) };
+  return {
+    items,
+    total: Number(totalRow?.count ?? 0)
+  };
 };
 
 export const listAllSessions = (): SessionRecord[] => {
-  const database = ensureDb();
-  const sessions = database
-    .prepare(
-      "SELECT id, started_at AS startedAt, ended_at AS endedAt, focus_seconds AS focusSeconds FROM sessions ORDER BY started_at ASC"
-    )
-    .all() as Array<{
-    id: number;
-    startedAt: string;
-    endedAt: string;
-    focusSeconds: number | null;
-  }>;
-  const usageRows = database
-    .prepare(
-      "SELECT session_id AS sessionId, app_name AS appName, window_title AS windowTitle, started_at AS startedAt, ended_at AS endedAt FROM session_app_usage ORDER BY started_at ASC"
-    )
-    .all() as Array<{
-    sessionId: number;
-    appName: string;
-    windowTitle: string | null;
-    startedAt: string;
-    endedAt: string;
-  }>;
+  const database = getSessionDatabase();
+  const sessionRows = database.select().from(sessions).orderBy(asc(sessions.startedAt)).all();
+  const usageRows = database.select().from(sessionAppUsage).orderBy(asc(sessionAppUsage.startedAt)).all();
   const usageBySession = new Map<number, SessionAppUsage[]>();
+
   for (const row of usageRows) {
     const list = usageBySession.get(row.sessionId);
     const segment = {
@@ -223,14 +183,16 @@ export const listAllSessions = (): SessionRecord[] => {
       windowTitle: row.windowTitle,
       startedAt: row.startedAt,
       endedAt: row.endedAt
-    };
+    } satisfies SessionAppUsage;
+
     if (list) {
       list.push(segment);
     } else {
       usageBySession.set(row.sessionId, [segment]);
     }
   }
-  return sessions.map((session) => ({
+
+  return sessionRows.map((session) => ({
     startedAt: session.startedAt,
     endedAt: session.endedAt,
     focusSeconds: session.focusSeconds ?? null,
@@ -254,45 +216,61 @@ const sortByStartedAt = (records: SessionRecord[]) => {
 };
 
 export const replaceSessions = (entries: SessionRecord[]) => {
-  const database = ensureDb();
-  const insertSession = database.prepare("INSERT INTO sessions (started_at, ended_at, focus_seconds) VALUES (?, ?, ?)");
-  const insertUsage = database.prepare(
-    "INSERT INTO session_app_usage (session_id, app_name, window_title, started_at, ended_at) VALUES (?, ?, ?, ?, ?)"
-  );
-  const replace = database.transaction((records: SessionRecord[]) => {
-    database.exec("DELETE FROM session_app_usage");
-    database.exec("DELETE FROM sessions");
-    database.exec("DELETE FROM sqlite_sequence WHERE name = 'sessions'");
-    database.exec("DELETE FROM sqlite_sequence WHERE name = 'session_app_usage'");
-    for (const record of records) {
+  const database = getSessionDatabase();
+
+  database.transaction((tx) => {
+    tx.delete(sessionAppUsage).run();
+    tx.delete(sessions).run();
+    tx.run(sql`DELETE FROM sqlite_sequence WHERE name IN ('sessions', 'session_app_usage')`);
+
+    for (const record of entries) {
       const focusSeconds = record.focusSeconds ?? (record.appUsage ? calculateFocusSeconds(record.appUsage) : null);
-      const info = insertSession.run(record.startedAt, record.endedAt, focusSeconds);
-      const sessionId = Number(info.lastInsertRowid);
+      const inserted = tx
+        .insert(sessions)
+        .values({
+          startedAt: record.startedAt,
+          endedAt: record.endedAt,
+          focusSeconds
+        })
+        .returning({ id: sessions.id })
+        .get();
+
+      const sessionId = Number(inserted.id);
+
       if (record.appUsage && record.appUsage.length > 0) {
-        for (const segment of record.appUsage) {
-          insertUsage.run(sessionId, segment.appName, segment.windowTitle ?? null, segment.startedAt, segment.endedAt);
-        }
+        tx.insert(sessionAppUsage)
+          .values(
+            record.appUsage.map((segment) => ({
+              sessionId,
+              appName: segment.appName,
+              windowTitle: segment.windowTitle ?? null,
+              startedAt: segment.startedAt,
+              endedAt: segment.endedAt
+            }))
+          )
+          .run();
       }
     }
   });
-  replace(entries);
 };
 
 export const clearSessions = () => {
-  const database = ensureDb();
-  const totalRow = database.prepare("SELECT COUNT(*) AS count FROM sessions").get() as { count: number };
-  const clear = database.transaction(() => {
-    database.exec("DELETE FROM session_app_usage");
-    database.exec("DELETE FROM sessions");
-    database.exec("DELETE FROM sqlite_sequence WHERE name = 'sessions'");
-    database.exec("DELETE FROM sqlite_sequence WHERE name = 'session_app_usage'");
+  const database = getSessionDatabase();
+  const totalRow = database
+    .select({ count: sql<number>`cast(count(*) as integer)` })
+    .from(sessions)
+    .get();
+
+  database.transaction((tx) => {
+    tx.delete(sessionAppUsage).run();
+    tx.delete(sessions).run();
+    tx.run(sql`DELETE FROM sqlite_sequence WHERE name IN ('sessions', 'session_app_usage')`);
   });
-  clear();
-  return Number(totalRow.count);
+
+  return Number(totalRow?.count ?? 0);
 };
 
 export const mergeSessions = (entries: SessionRecord[]) => {
-  const database = ensureDb();
   const existingKeys = new Set(listAllSessions().map((record) => createSessionKey(record)));
   const uniqueEntries = entries.filter((record) => {
     const key = createSessionKey(record);
@@ -302,57 +280,71 @@ export const mergeSessions = (entries: SessionRecord[]) => {
     existingKeys.add(key);
     return true;
   });
+
   if (uniqueEntries.length === 0) {
     return 0;
   }
+
   const sortedEntries = sortByStartedAt(uniqueEntries);
-  const insertSession = database.prepare("INSERT INTO sessions (started_at, ended_at, focus_seconds) VALUES (?, ?, ?)");
-  const insertUsage = database.prepare(
-    "INSERT INTO session_app_usage (session_id, app_name, window_title, started_at, ended_at) VALUES (?, ?, ?, ?, ?)"
-  );
-  const insertMany = database.transaction((records: SessionRecord[]) => {
-    for (const record of records) {
+  const database = getSessionDatabase();
+
+  database.transaction((tx) => {
+    for (const record of sortedEntries) {
       const focusSeconds = record.focusSeconds ?? (record.appUsage ? calculateFocusSeconds(record.appUsage) : null);
-      const info = insertSession.run(record.startedAt, record.endedAt, focusSeconds);
-      const sessionId = Number(info.lastInsertRowid);
+      const inserted = tx
+        .insert(sessions)
+        .values({
+          startedAt: record.startedAt,
+          endedAt: record.endedAt,
+          focusSeconds
+        })
+        .returning({ id: sessions.id })
+        .get();
+
+      const sessionId = Number(inserted.id);
+
       if (record.appUsage && record.appUsage.length > 0) {
-        for (const segment of record.appUsage) {
-          insertUsage.run(sessionId, segment.appName, segment.windowTitle ?? null, segment.startedAt, segment.endedAt);
-        }
+        tx.insert(sessionAppUsage)
+          .values(
+            record.appUsage.map((segment) => ({
+              sessionId,
+              appName: segment.appName,
+              windowTitle: segment.windowTitle ?? null,
+              startedAt: segment.startedAt,
+              endedAt: segment.endedAt
+            }))
+          )
+          .run();
       }
     }
   });
-  insertMany(sortedEntries);
+
   return sortedEntries.length;
 };
 
 export const deleteSession = (id: number) => {
-  const database = ensureDb();
-  const del = database.transaction(() => {
-    database.prepare("DELETE FROM session_app_usage WHERE session_id = ?").run(id);
-    database.prepare("DELETE FROM sessions WHERE id = ?").run(id);
-  });
-  del();
+  const database = getSessionDatabase();
+  database.delete(sessions).where(eq(sessions.id, id)).run();
 };
 
 export const getSessionDetail = (sessionId: number): SessionDetail | null => {
-  const database = ensureDb();
-  const session = database
-    .prepare("SELECT id, started_at AS startedAt, ended_at AS endedAt, focus_seconds AS focusSeconds FROM sessions WHERE id = ?")
-    .get(sessionId) as
-    | {
-        id: number;
-        startedAt: string;
-        endedAt: string;
-        focusSeconds: number | null;
-      }
-    | undefined;
+  const database = getSessionDatabase();
+  const session = database.select().from(sessions).where(eq(sessions.id, sessionId)).get();
+
   if (!session) return null;
+
   const usage = database
-    .prepare(
-      "SELECT app_name AS appName, window_title AS windowTitle, started_at AS startedAt, ended_at AS endedAt FROM session_app_usage WHERE session_id = ? ORDER BY started_at ASC"
-    )
-    .all(sessionId) as SessionAppUsage[];
+    .select({
+      appName: sessionAppUsage.appName,
+      windowTitle: sessionAppUsage.windowTitle,
+      startedAt: sessionAppUsage.startedAt,
+      endedAt: sessionAppUsage.endedAt
+    })
+    .from(sessionAppUsage)
+    .where(eq(sessionAppUsage.sessionId, sessionId))
+    .orderBy(asc(sessionAppUsage.startedAt))
+    .all();
+
   return {
     id: session.id,
     startedAt: session.startedAt,
@@ -363,7 +355,6 @@ export const getSessionDetail = (sessionId: number): SessionDetail | null => {
 };
 
 export const getSessionFocusSummary = (): SessionFocusSummary => {
-  const database = ensureDb();
   const now = new Date();
   const endIso = now.toISOString();
   const startOfToday = new Date(now);
@@ -376,14 +367,12 @@ export const getSessionFocusSummary = (): SessionFocusSummary => {
   startOfMonth.setDate(startOfMonth.getDate() - 29);
 
   return {
-    todaySeconds: getFocusSecondsBetween(database, startOfToday.toISOString(), endIso),
-    weekSeconds: getFocusSecondsBetween(database, startOfWeek.toISOString(), endIso),
-    monthSeconds: getFocusSecondsBetween(database, startOfMonth.toISOString(), endIso)
+    todaySeconds: getFocusSecondsBetween(startOfToday.toISOString(), endIso),
+    weekSeconds: getFocusSecondsBetween(startOfWeek.toISOString(), endIso),
+    monthSeconds: getFocusSecondsBetween(startOfMonth.toISOString(), endIso)
   };
 };
 
 export const closeSessionStore = () => {
-  if (!db) return;
-  db.close();
-  db = null;
+  closeSessionDatabase();
 };
