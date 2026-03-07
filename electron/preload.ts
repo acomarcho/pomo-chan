@@ -1,85 +1,63 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type {
-  SessionDetail,
-  SessionFocusSummary,
-  SessionImportMode,
-  SessionList,
-  SessionTransferResult
-} from "../src/lib/session-types";
+import type { ElectronAPI, IpcInvokeContract, IpcRendererEventContract, IpcSendContract } from "../src/shared/electron-contract";
+import { IPC } from "../src/shared/electron-contract";
 
-type AudioLanguage = "en" | "jp";
-type AmbientVolumes = {
-  fire: number;
-  rain: number;
-  forest: number;
+const invoke = <Channel extends keyof IpcInvokeContract>(
+  channel: Channel,
+  ...args: IpcInvokeContract[Channel]["args"]
+): Promise<IpcInvokeContract[Channel]["return"]> => {
+  return ipcRenderer.invoke(channel, ...args) as Promise<IpcInvokeContract[Channel]["return"]>;
 };
 
-type AppConfig = {
-  playTick: boolean;
-  audioLanguage: AudioLanguage;
-  ambientVolumes: AmbientVolumes;
-  focusMinutes: number;
-  breakMinutes: number;
+const send = <Channel extends keyof IpcSendContract>(channel: Channel, ...args: IpcSendContract[Channel]) => {
+  ipcRenderer.send(channel, ...args);
 };
 
-const alwaysOnTop = {
-  get: () => ipcRenderer.invoke("always-on-top:get"),
-  set: (value: boolean) => ipcRenderer.invoke("always-on-top:set", value)
+const on = <Channel extends keyof IpcRendererEventContract>(
+  channel: Channel,
+  callback: (...args: IpcRendererEventContract[Channel]) => void
+) => {
+  const handler = (_event: Electron.IpcRendererEvent, ...args: IpcRendererEventContract[Channel]) => {
+    callback(...args);
+  };
+  ipcRenderer.on(channel, handler);
+  return () => ipcRenderer.off(channel, handler);
 };
 
-const activeApp = {
-  get: () =>
-    ipcRenderer.invoke("active-app:get") as Promise<{
-      title: string;
-      ownerName: string;
-    }>,
-  debug: () => ipcRenderer.invoke("active-app:debug")
-};
-
-const config = {
-  get: () => ipcRenderer.invoke("config:get") as Promise<AppConfig>,
-  set: (value: Partial<AppConfig>) => ipcRenderer.invoke("config:set", value) as Promise<AppConfig>,
-  onChange: (callback: (value: AppConfig) => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, value: AppConfig) => {
-      callback(value);
-    };
-    ipcRenderer.on("config:changed", handler);
-    return () => ipcRenderer.off("config:changed", handler);
+const electronAPI: ElectronAPI = {
+  alwaysOnTop: {
+    get: () => invoke(IPC.alwaysOnTop.get),
+    set: (value: boolean) => invoke(IPC.alwaysOnTop.set, value)
   },
-  openWindow: () => ipcRenderer.invoke("config:open")
+  activeApp: {
+    get: () => invoke(IPC.activeApp.get),
+    debug: () => invoke(IPC.activeApp.debug)
+  },
+  config: {
+    get: () => invoke(IPC.config.get),
+    set: (value) => invoke(IPC.config.set, value),
+    onChange: (callback) => on(IPC.config.changed, callback),
+    openWindow: () => invoke(IPC.config.open)
+  },
+  history: {
+    openWindow: () => invoke(IPC.history.open)
+  },
+  focusSession: {
+    setActive: (value) => send(IPC.focusSession.setActive, value)
+  },
+  sessions: {
+    add: (value) => invoke(IPC.sessions.add, value),
+    list: (value) => invoke(IPC.sessions.list, value),
+    detail: (value) => invoke(IPC.sessions.detail, value),
+    summary: () => invoke(IPC.sessions.summary),
+    export: () => invoke(IPC.sessions.export),
+    import: (value) => invoke(IPC.sessions.import, value),
+    delete: (value) => invoke(IPC.sessions.delete, value),
+    clear: () => invoke(IPC.sessions.clear)
+  },
+  sessionDetails: {
+    openWindow: (sessionId: number) => invoke(IPC.sessionDetails.open, sessionId)
+  }
 };
 
-const history = {
-  openWindow: () => ipcRenderer.invoke("history:open")
-};
-
-const focusSession = {
-  setActive: (value: boolean) => ipcRenderer.send("focus-session:set-active", value)
-};
-
-const sessions = {
-  add: (value: { startedAt: string; endedAt: string; focusSeconds?: number | null; appUsage?: SessionDetail["appUsage"] }) =>
-    ipcRenderer.invoke("session:add", value) as Promise<number>,
-  list: (value: { page: number; pageSize: number; startDate?: string; endDate?: string }) =>
-    ipcRenderer.invoke("sessions:list", value) as Promise<SessionList>,
-  detail: (value: { id: number }) => ipcRenderer.invoke("sessions:detail", value) as Promise<SessionDetail | null>,
-  summary: () => ipcRenderer.invoke("sessions:summary") as Promise<SessionFocusSummary>,
-  export: () => ipcRenderer.invoke("sessions:export") as Promise<SessionTransferResult>,
-  import: (value: { mode: SessionImportMode }) => ipcRenderer.invoke("sessions:import", value) as Promise<SessionTransferResult>,
-  delete: (value: { id: number }) => ipcRenderer.invoke("sessions:delete", value) as Promise<{ ok: boolean }>,
-  clear: () => ipcRenderer.invoke("sessions:clear") as Promise<SessionTransferResult>
-};
-
-const sessionDetails = {
-  openWindow: (sessionId: number) => ipcRenderer.invoke("session-details:open", sessionId)
-};
-
-contextBridge.exposeInMainWorld("electronAPI", {
-  alwaysOnTop,
-  activeApp,
-  config,
-  history,
-  focusSession,
-  sessionDetails,
-  sessions
-});
+contextBridge.exposeInMainWorld("electronAPI", electronAPI);

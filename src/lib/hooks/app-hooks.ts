@@ -1,80 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { DEFAULT_AMBIENT_VOLUMES, type AmbientSound } from "@/lib/ambient";
 import { DEFAULT_BREAK_MINUTES, DEFAULT_FOCUS_MINUTES, clampTimerMinutes } from "@/lib/pomodoro";
-import type {
-  SessionDetail,
-  SessionFocusSummary,
-  SessionImportMode,
-  SessionList,
-  SessionTransferResult
-} from "@/lib/session-types";
+import type { AppConfig } from "@/shared/electron-contract";
 
-export type AppConfig = {
-  playTick: boolean;
-  audioLanguage: "en" | "jp";
-  ambientVolumes: Record<AmbientSound, number>;
-  focusMinutes: number;
-  breakMinutes: number;
-};
-
-type AlwaysOnTopAPI = {
-  get: () => Promise<boolean>;
-  set: (value: boolean) => Promise<boolean>;
-};
-
-type ActiveAppAPI = {
-  get: () => Promise<{ title: string; ownerName: string }>;
-  debug?: () => Promise<unknown>;
-};
-
-type ConfigAPI = {
-  get: () => Promise<AppConfig>;
-  set: (value: Partial<AppConfig>) => Promise<AppConfig>;
-  onChange?: (callback: (value: AppConfig) => void) => () => void;
-  openWindow?: () => Promise<boolean>;
-};
-
-type SessionAPI = {
-  add?: (value: {
-    startedAt: string;
-    endedAt: string;
-    focusSeconds?: number | null;
-    appUsage?: SessionDetail["appUsage"];
-  }) => Promise<number>;
-  list?: (value: { page: number; pageSize: number; startDate?: string; endDate?: string }) => Promise<SessionList>;
-  detail?: (value: { id: number }) => Promise<SessionDetail | null>;
-  summary?: () => Promise<SessionFocusSummary>;
-  delete?: (value: { id: number }) => Promise<{ ok: boolean }>;
-  export?: () => Promise<SessionTransferResult>;
-  import?: (value: { mode: SessionImportMode }) => Promise<SessionTransferResult>;
-  clear?: () => Promise<SessionTransferResult>;
-};
-
-type HistoryAPI = {
-  openWindow?: () => Promise<boolean>;
-};
-
-type SessionDetailsAPI = {
-  openWindow?: (sessionId: number) => Promise<boolean>;
-};
-
-type FocusSessionAPI = {
-  setActive?: (value: boolean) => void;
-};
-
-declare global {
-  interface Window {
-    electronAPI?: {
-      alwaysOnTop?: AlwaysOnTopAPI;
-      activeApp?: ActiveAppAPI;
-      config?: ConfigAPI;
-      history?: HistoryAPI;
-      focusSession?: FocusSessionAPI;
-      sessionDetails?: SessionDetailsAPI;
-      sessions?: SessionAPI;
-    };
-  }
-}
+export type { AppConfig } from "@/shared/electron-contract";
 
 const DEFAULT_CONFIG: AppConfig = {
   playTick: false,

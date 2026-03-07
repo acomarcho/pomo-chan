@@ -5,6 +5,8 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { createInterface } from "node:readline";
 import Store from "electron-store";
 import { log } from "./logger";
+import type { AppConfig, IpcInvokeContract, IpcRendererEventContract, IpcSendContract } from "../src/shared/electron-contract";
+import { IPC } from "../src/shared/electron-contract";
 
 const activeWindowBinary = app.isPackaged
   ? path.join(process.resourcesPath, "active-window")
@@ -141,7 +143,7 @@ import {
   mergeSessions,
   replaceSessions
 } from "./session-store";
-import type { SessionAppUsage, SessionImportMode, SessionRecord } from "../src/lib/session-types";
+import type { SessionAppUsage, SessionRecord } from "../src/lib/session-types";
 import { DEFAULT_BREAK_MINUTES, DEFAULT_FOCUS_MINUTES, clampTimerMinutes } from "../src/lib/pomodoro";
 
 let mainWindow: BrowserWindow | null = null;
@@ -155,21 +157,6 @@ type ActiveAppInfo = {
   title: string;
   ownerName: string;
   error?: string;
-};
-
-type AudioLanguage = "en" | "jp";
-type AmbientVolumes = {
-  fire: number;
-  rain: number;
-  forest: number;
-};
-
-type AppConfig = {
-  playTick: boolean;
-  audioLanguage: AudioLanguage;
-  ambientVolumes: AmbientVolumes;
-  focusMinutes: number;
-  breakMinutes: number;
 };
 
 const configStore = new Store<AppConfig>({
@@ -196,10 +183,35 @@ const getConfig = (): AppConfig => {
   };
 };
 
+const handle = <Channel extends keyof IpcInvokeContract>(
+  channel: Channel,
+  listener: (
+    event: Electron.IpcMainInvokeEvent,
+    ...args: IpcInvokeContract[Channel]["args"]
+  ) => IpcInvokeContract[Channel]["return"] | Promise<IpcInvokeContract[Channel]["return"]>
+) => {
+  ipcMain.handle(channel, listener as (event: Electron.IpcMainInvokeEvent, ...args: unknown[]) => unknown);
+};
+
+const onIpc = <Channel extends keyof IpcSendContract>(
+  channel: Channel,
+  listener: (event: Electron.IpcMainEvent, ...args: IpcSendContract[Channel]) => void
+) => {
+  ipcMain.on(channel, listener as (event: Electron.IpcMainEvent, ...args: unknown[]) => void);
+};
+
+const sendToWindow = <Channel extends keyof IpcRendererEventContract>(
+  window: BrowserWindow,
+  channel: Channel,
+  ...args: IpcRendererEventContract[Channel]
+) => {
+  window.webContents.send(channel, ...args);
+};
+
 const broadcastConfig = (config: AppConfig) => {
   for (const window of BrowserWindow.getAllWindows()) {
     if (!window.isDestroyed()) {
-      window.webContents.send("config:changed", config);
+      sendToWindow(window, IPC.config.changed, config);
     }
   }
 };
@@ -419,27 +431,27 @@ const createSessionDetailsWindow = (sessionId: number) => {
   });
 };
 
-ipcMain.handle("always-on-top:get", () => {
+handle(IPC.alwaysOnTop.get, () => {
   return mainWindow?.isAlwaysOnTop() ?? false;
 });
 
-ipcMain.handle("always-on-top:set", (_event, value: boolean) => {
+handle(IPC.alwaysOnTop.set, (_event, value) => {
   if (!mainWindow) return false;
   mainWindow.setAlwaysOnTop(Boolean(value), "floating");
   syncAuxWindowsAlwaysOnTop();
   return mainWindow.isAlwaysOnTop();
 });
 
-ipcMain.handle("active-app:get", async () => {
+handle(IPC.activeApp.get, async () => {
   const info = await getActiveAppInfo();
   return { title: info.title, ownerName: info.ownerName };
 });
 
-ipcMain.handle("active-app:debug", async () => {
+handle(IPC.activeApp.debug, async () => {
   return getActiveAppInfo();
 });
 
-ipcMain.on("focus-session:set-active", (event, isActive: boolean) => {
+onIpc(IPC.focusSession.setActive, (event, isActive) => {
   const senderWindow = BrowserWindow.fromWebContents(event.sender);
   if (!senderWindow || senderWindow !== mainWindow) {
     return;
@@ -447,11 +459,11 @@ ipcMain.on("focus-session:set-active", (event, isActive: boolean) => {
   hasActiveFocusSession = Boolean(isActive);
 });
 
-ipcMain.handle("config:get", () => {
+handle(IPC.config.get, () => {
   return getConfig();
 });
 
-ipcMain.handle("config:set", (_event, value: Partial<AppConfig>) => {
+handle(IPC.config.set, (_event, value) => {
   const current = getConfig();
   const nextFocusMinutes = value.focusMinutes === undefined ? current.focusMinutes : clampTimerMinutes(value.focusMinutes);
   const nextBreakMinutes = value.breakMinutes === undefined ? current.breakMinutes : clampTimerMinutes(value.breakMinutes);
@@ -470,43 +482,43 @@ ipcMain.handle("config:set", (_event, value: Partial<AppConfig>) => {
   return nextConfig;
 });
 
-ipcMain.handle("config:open", () => {
+handle(IPC.config.open, () => {
   createConfigWindow();
   return true;
 });
 
-ipcMain.handle("history:open", () => {
+handle(IPC.history.open, () => {
   createHistoryWindow();
   return true;
 });
 
-ipcMain.handle("session-details:open", (_event, sessionId: number) => {
+handle(IPC.sessionDetails.open, (_event, sessionId) => {
   createSessionDetailsWindow(sessionId);
   return true;
 });
 
-ipcMain.handle("session:add", (_event, value: SessionRecord) => {
+handle(IPC.sessions.add, (_event, value) => {
   return addSession(value);
 });
 
-ipcMain.handle("sessions:list", (_event, value: { page: number; pageSize: number; startDate?: string; endDate?: string }) => {
+handle(IPC.sessions.list, (_event, value) => {
   return listSessions(value.page, value.pageSize, { startDate: value.startDate, endDate: value.endDate });
 });
 
-ipcMain.handle("sessions:detail", (_event, value: { id: number }) => {
+handle(IPC.sessions.detail, (_event, value) => {
   return getSessionDetail(value.id);
 });
 
-ipcMain.handle("sessions:summary", () => {
+handle(IPC.sessions.summary, () => {
   return getSessionFocusSummary();
 });
 
-ipcMain.handle("sessions:delete", (_event, value: { id: number }) => {
+handle(IPC.sessions.delete, (_event, value) => {
   deleteSession(value.id);
   return { ok: true };
 });
 
-ipcMain.handle("sessions:clear", () => {
+handle(IPC.sessions.clear, () => {
   try {
     const count = clearSessions();
     return { ok: true, count } as const;
@@ -587,7 +599,7 @@ const extractSessionRecords = (payload: unknown): { records: SessionRecord[]; re
   };
 };
 
-ipcMain.handle("sessions:export", async () => {
+handle(IPC.sessions.export, async () => {
   const parent = getDialogParent();
   const now = new Date();
   const padded = (value: number) => String(value).padStart(2, "0");
@@ -619,7 +631,7 @@ ipcMain.handle("sessions:export", async () => {
   }
 });
 
-ipcMain.handle("sessions:import", async (_event, options?: { mode?: SessionImportMode }) => {
+handle(IPC.sessions.import, async (_event, options) => {
   const parent = getDialogParent();
   const { canceled, filePaths } = await dialog.showOpenDialog(parent, {
     title: "Import sessions",
