@@ -45,8 +45,10 @@ func getActiveWindow() -> WindowInfo? {
 
 let encoder = JSONEncoder()
 
-// Print permission status on startup before entering the read loop.
-let hasScreenRecording = CGPreflightScreenCaptureAccess()
+// Request screen recording access on startup. This registers the app in
+// System Settings → Screen Recording so the user can just toggle it on,
+// instead of having to manually add it.
+let hasScreenRecording = CGRequestScreenCaptureAccess()
 print("{\"ready\":true,\"screenRecording\":\(hasScreenRecording)}")
 fflush(stdout)
 
