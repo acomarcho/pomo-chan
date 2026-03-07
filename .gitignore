@@ -96,3 +96,6 @@ out/
 dist/
 dist-electron/
 release/
+
+# Compiled native binaries (rebuild with: npm run build:native)
+native/active-window

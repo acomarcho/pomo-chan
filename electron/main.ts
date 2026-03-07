@@ -1,44 +1,93 @@
 import { app, BrowserWindow, dialog, ipcMain, screen } from "electron";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
+import { spawn, type ChildProcess } from "node:child_process";
+import { createInterface } from "node:readline";
 import Store from "electron-store";
 import { log } from "./logger";
 
-const execFileAsync = promisify(execFile);
+const activeWindowBinary = app.isPackaged
+  ? path.join(process.resourcesPath, "active-window")
+  : path.join(app.getAppPath(), "native", "active-window");
 
-const getWindowsBinary = app.isPackaged
-  ? path.join(process.resourcesPath, "app.asar.unpacked", "node_modules", "get-windows", "main")
-  : path.join(app.getAppPath(), "node_modules", "get-windows", "main");
-
+let activeWindowProc: ChildProcess | null = null;
 let activeWindowPending = false;
+const responseQueue: Array<(line: string) => void> = [];
+
+const killActiveWindowProc = () => {
+  activeWindowProc?.kill();
+  activeWindowProc = null;
+  activeWindowPending = false;
+  for (const resolve of responseQueue.splice(0)) {
+    resolve("");
+  }
+};
+
+const spawnActiveWindowProc = () => {
+  if (activeWindowProc) return;
+
+  try {
+    const proc = spawn(activeWindowBinary, { stdio: ["pipe", "pipe", "pipe"] });
+    activeWindowProc = proc;
+
+    const rl = createInterface({ input: proc.stdout! });
+    rl.on("line", (line) => {
+      const resolve = responseQueue.shift();
+      if (resolve) resolve(line);
+    });
+
+    proc.stderr!.on("data", (chunk: Buffer) => {
+      log.warn("active-window stderr", chunk.toString().trim());
+    });
+
+    proc.on("exit", (code, signal) => {
+      log.warn("active-window process exited", { code, signal });
+      killActiveWindowProc();
+    });
+
+    proc.on("error", (error) => {
+      log.error("active-window process error", error);
+      killActiveWindowProc();
+    });
+
+    log.info("active-window process spawned");
+  } catch (error) {
+    log.error("Failed to spawn active-window process", error);
+  }
+};
 
 const getActiveWindowNative = async (): Promise<{
   title?: string;
   owner?: { name?: string };
 } | null> => {
   if (activeWindowPending) return null;
+  if (!activeWindowProc) {
+    spawnActiveWindowProc();
+    if (!activeWindowProc) return null;
+  }
+
   activeWindowPending = true;
   try {
-    const { stdout } = await execFileAsync(getWindowsBinary, [], { timeout: 5000 });
-    if (!stdout.trim()) return null;
-    return JSON.parse(stdout);
-  } catch (error: unknown) {
-    const execError = error as {
-      code?: number | string;
-      signal?: string;
-      stderr?: string;
-      stdout?: string;
-      killed?: boolean;
-    };
-    log.error("get-windows binary failed", {
-      code: execError.code,
-      signal: execError.signal,
-      killed: execError.killed,
-      stderr: execError.stderr?.trim() || "(empty)",
-      stdout: execError.stdout?.trim() || "(empty)"
+    const line = await new Promise<string>((resolve) => {
+      const timeout = setTimeout(() => {
+        const idx = responseQueue.indexOf(resolve);
+        if (idx !== -1) responseQueue.splice(idx, 1);
+        resolve("");
+      }, 5000);
+
+      responseQueue.push((data) => {
+        clearTimeout(timeout);
+        resolve(data);
+      });
+
+      activeWindowProc!.stdin!.write("\n");
     });
+
+    if (!line.trim() || line.trim() === "null") return null;
+    return JSON.parse(line);
+  } catch (error) {
+    log.error("active-window query failed", error);
+    killActiveWindowProc();
     return null;
   } finally {
     activeWindowPending = false;
@@ -610,7 +659,7 @@ app.on("ready", () => {
     arch: process.arch
   });
 
-  // Permission health check — log whether get-windows binary works on launch
+  // Health check — log whether active window detection works on launch
   getActiveWindowNative().then((result) => {
     if (result) {
       log.info("Permission check passed", { owner: result.owner?.name, title: result.title });
@@ -630,6 +679,7 @@ app.on("window-all-closed", () => {
 
 app.on("before-quit", () => {
   log.info("App quitting");
+  killActiveWindowProc();
   closeSessionStore();
 });
 

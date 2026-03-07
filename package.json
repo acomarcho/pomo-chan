@@ -11,8 +11,9 @@
     "preview": "vite preview",
     "start": "electron .",
     "start:fresh": "FRESH_START=1 electron .",
-    "package": "npm run build && electron-builder --dir",
-    "make": "npm run build && electron-builder",
+    "build:native": "swiftc -O -o native/active-window native/active-window.swift",
+    "package": "npm run build:native && npm run build && electron-builder --dir",
+    "make": "npm run build:native && npm run build && electron-builder",
     "lint": "eslint .",
     "format": "prettier --write --ignore-unknown .",
     "typecheck": "tsc --noEmit",
@@ -59,7 +60,6 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "electron-store": "^11.0.2",
-    "get-windows": "^9.2.3",
     "lodash": "^4.17.23",
     "lucide-react": "^0.563.0",
     "pixi-live2d-display": "^0.4.0",
@@ -92,11 +92,13 @@
       {
         "from": "public/live2d",
         "to": "live2d"
+      },
+      {
+        "from": "native/active-window",
+        "to": "active-window"
       }
     ],
-    "asarUnpack": [
-      "node_modules/get-windows/**/*"
-    ],
+    "asarUnpack": [],
     "mac": {
       "category": "public.app-category.productivity",
       "target": [
