@@ -270,8 +270,14 @@ export const clearSessions = () => {
   return Number(totalRow?.count ?? 0);
 };
 
+const getExistingSessionKeys = (): Set<string> => {
+  const database = getSessionDatabase();
+  const rows = database.select({ startedAt: sessions.startedAt, endedAt: sessions.endedAt }).from(sessions).all();
+  return new Set(rows.map((row) => `${row.startedAt}::${row.endedAt}`));
+};
+
 export const mergeSessions = (entries: SessionRecord[]) => {
-  const existingKeys = new Set(listAllSessions().map((record) => createSessionKey(record)));
+  const existingKeys = getExistingSessionKeys();
   const uniqueEntries = entries.filter((record) => {
     const key = createSessionKey(record);
     if (existingKeys.has(key)) {

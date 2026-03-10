@@ -79,6 +79,13 @@ export const usePomodoroTimer = (config: AppConfig, options: PomodoroTimerOption
   });
 
   useEffect(() => {
+    Object.values(audioMapRef.current).forEach((audio) => {
+      audio.pause();
+      audio.src = "";
+    });
+    reminderAudioRef.current.pause();
+    reminderAudioRef.current.src = "";
+
     audioMapRef.current = buildAudioMap(config.audioLanguage);
     reminderAudioRef.current = createReminderAudio(config.audioLanguage);
   }, [config.audioLanguage]);
@@ -110,7 +117,14 @@ export const usePomodoroTimer = (config: AppConfig, options: PomodoroTimerOption
     return () => {
       Object.values(ambientAudioRef.current).forEach((audio) => {
         audio.pause();
+        audio.src = "";
       });
+      Object.values(audioMapRef.current).forEach((audio) => {
+        audio.pause();
+        audio.src = "";
+      });
+      reminderAudioRef.current.pause();
+      reminderAudioRef.current.src = "";
     };
   }, []);
 
