@@ -10,6 +10,10 @@ export const MAX_TIMER_MINUTES = 120;
 export const DEFAULT_FOCUS_MINUTES = 25;
 export const DEFAULT_BREAK_MINUTES = 5;
 
+export const DEFAULT_REMINDER_MINUTES = 2;
+export const MIN_REMINDER_MINUTES = 1;
+export const MAX_REMINDER_MINUTES = 30;
+
 export const MODES: Record<Mode, ModeConfig> = {
   focus: { label: "Focus", seconds: DEFAULT_FOCUS_MINUTES * 60 },
   break: { label: "Break", seconds: DEFAULT_BREAK_MINUTES * 60 }
@@ -19,6 +23,12 @@ export const clampTimerMinutes = (value: number) => {
   if (!Number.isFinite(value)) return MIN_TIMER_MINUTES;
   const rounded = Math.round(value);
   return Math.min(MAX_TIMER_MINUTES, Math.max(MIN_TIMER_MINUTES, rounded));
+};
+
+export const clampReminderMinutes = (value: number) => {
+  if (!Number.isFinite(value)) return MIN_REMINDER_MINUTES;
+  const rounded = Math.round(value);
+  return Math.min(MAX_REMINDER_MINUTES, Math.max(MIN_REMINDER_MINUTES, rounded));
 };
 
 export const getModeSeconds = (mode: Mode, focusMinutes: number, breakMinutes: number) => {

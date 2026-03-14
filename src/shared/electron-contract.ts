@@ -25,6 +25,8 @@ export type AppConfig = {
   ambientVolumes: Record<AmbientSound, number>;
   focusMinutes: number;
   breakMinutes: number;
+  idleReminderEnabled: boolean;
+  idleReminderMinutes: number;
 };
 
 export const IPC = {

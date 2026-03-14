@@ -7,7 +7,6 @@ type AudioEvent = "start" | "end";
 type AudioKey = `${Mode}_${AudioEvent}`;
 
 const AUDIO_BASE_URL = `${import.meta.env.BASE_URL}audio/`;
-const REMINDER_INTERVAL_MS = 5 * 60 * 1000;
 
 const buildAudioMap = (language: AppConfig["audioLanguage"]) => {
   const buildUrl = (audioMode: Mode, event: AudioEvent) => `${AUDIO_BASE_URL}${audioMode}_${event}_${language}.mp3`;
@@ -184,12 +183,14 @@ export const usePomodoroTimer = (config: AppConfig, options: PomodoroTimerOption
   const scheduleReminder = useCallback(() => {
     clearReminderTimeout();
     if (isRunningRef.current) return;
+    if (!config.idleReminderEnabled) return;
+    const intervalMs = config.idleReminderMinutes * 60 * 1000;
     reminderTimeoutRef.current = window.setTimeout(() => {
       if (isRunningRef.current) return;
       playReminder();
       scheduleReminder();
-    }, REMINDER_INTERVAL_MS);
-  }, [clearReminderTimeout, playReminder]);
+    }, intervalMs);
+  }, [clearReminderTimeout, config.idleReminderEnabled, config.idleReminderMinutes, playReminder]);
 
   useEffect(() => {
     if (!isRunning) return;

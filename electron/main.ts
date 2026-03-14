@@ -145,7 +145,13 @@ import {
   replaceSessions
 } from "./session-store";
 import type { SessionAppUsage, SessionRecord } from "../src/lib/session-types";
-import { DEFAULT_BREAK_MINUTES, DEFAULT_FOCUS_MINUTES, clampTimerMinutes } from "../src/lib/pomodoro";
+import {
+  DEFAULT_BREAK_MINUTES,
+  DEFAULT_FOCUS_MINUTES,
+  DEFAULT_REMINDER_MINUTES,
+  clampReminderMinutes,
+  clampTimerMinutes
+} from "../src/lib/pomodoro";
 
 let mainWindow: BrowserWindow | null = null;
 let configWindow: BrowserWindow | null = null;
@@ -170,7 +176,9 @@ const configStore = new Store<AppConfig>({
       forest: 0
     },
     focusMinutes: DEFAULT_FOCUS_MINUTES,
-    breakMinutes: DEFAULT_BREAK_MINUTES
+    breakMinutes: DEFAULT_BREAK_MINUTES,
+    idleReminderEnabled: true,
+    idleReminderMinutes: DEFAULT_REMINDER_MINUTES
   }
 });
 
@@ -180,7 +188,9 @@ const getConfig = (): AppConfig => {
     audioLanguage: configStore.get("audioLanguage"),
     ambientVolumes: configStore.get("ambientVolumes"),
     focusMinutes: configStore.get("focusMinutes"),
-    breakMinutes: configStore.get("breakMinutes")
+    breakMinutes: configStore.get("breakMinutes"),
+    idleReminderEnabled: configStore.get("idleReminderEnabled"),
+    idleReminderMinutes: configStore.get("idleReminderMinutes")
   };
 };
 
@@ -468,11 +478,14 @@ handle(IPC.config.set, (_event, value) => {
   const current = getConfig();
   const nextFocusMinutes = value.focusMinutes === undefined ? current.focusMinutes : clampTimerMinutes(value.focusMinutes);
   const nextBreakMinutes = value.breakMinutes === undefined ? current.breakMinutes : clampTimerMinutes(value.breakMinutes);
+  const nextIdleReminderMinutes =
+    value.idleReminderMinutes === undefined ? current.idleReminderMinutes : clampReminderMinutes(value.idleReminderMinutes);
   const nextConfig = {
     ...current,
     ...value,
     focusMinutes: nextFocusMinutes,
     breakMinutes: nextBreakMinutes,
+    idleReminderMinutes: nextIdleReminderMinutes,
     ambientVolumes: {
       ...current.ambientVolumes,
       ...(value.ambientVolumes ?? {})

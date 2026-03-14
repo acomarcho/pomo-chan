@@ -1,17 +1,27 @@
 import React from "react";
+import { Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverDescription,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverTrigger
+} from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import { useAppConfig, type AppConfig } from "@/lib/hooks/app-hooks";
 import { AMBIENT_SOUNDS, AMBIENT_SOUND_LABELS, type AmbientSound } from "@/lib/ambient";
-import { MAX_TIMER_MINUTES, MIN_TIMER_MINUTES } from "@/lib/pomodoro";
+import { MAX_TIMER_MINUTES, MIN_REMINDER_MINUTES, MAX_REMINDER_MINUTES, MIN_TIMER_MINUTES } from "@/lib/pomodoro";
 
-type MinutesKey = "focusMinutes" | "breakMinutes";
+type MinutesKey = "focusMinutes" | "breakMinutes" | "idleReminderMinutes";
 type MinutesDraft = Record<MinutesKey, string>;
 
 const toMinutesDraft = (config: Pick<AppConfig, MinutesKey>): MinutesDraft => ({
   focusMinutes: String(config.focusMinutes),
-  breakMinutes: String(config.breakMinutes)
+  breakMinutes: String(config.breakMinutes),
+  idleReminderMinutes: String(config.idleReminderMinutes)
 });
 
 export const ConfigWindow = () => {
@@ -22,12 +32,16 @@ export const ConfigWindow = () => {
   React.useEffect(() => {
     setMinutesDraft((prev) => {
       const next = toMinutesDraft(config);
-      if (prev.focusMinutes === next.focusMinutes && prev.breakMinutes === next.breakMinutes) {
+      if (
+        prev.focusMinutes === next.focusMinutes &&
+        prev.breakMinutes === next.breakMinutes &&
+        prev.idleReminderMinutes === next.idleReminderMinutes
+      ) {
         return prev;
       }
       return next;
     });
-  }, [config.focusMinutes, config.breakMinutes]);
+  }, [config.focusMinutes, config.breakMinutes, config.idleReminderMinutes]);
 
   const handleAmbientChange = (sound: AmbientSound, value: number) => {
     const clamped = Math.min(100, Math.max(0, value));
@@ -69,6 +83,51 @@ export const ConfigWindow = () => {
       </header>
 
       <section className="space-y-4">
+        <div className="neo-panel">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-1.5">
+                <h2 className="text-sm font-black uppercase tracking-[0.08em] text-gray-900">Idle reminder</h2>
+                <Popover>
+                  <PopoverTrigger aria-label="Idle reminder info">
+                    <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                  </PopoverTrigger>
+                  <PopoverContent side="bottom" align="start" className="w-72">
+                    <PopoverHeader>
+                      <PopoverTitle>Idle reminder</PopoverTitle>
+                      <PopoverDescription>
+                        When enabled, Pomo-chan will play a reminder sound if the timer hasn't been started after a period of
+                        inactivity, nudging you to stay on track.
+                      </PopoverDescription>
+                    </PopoverHeader>
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <Switch
+                checked={config.idleReminderEnabled}
+                aria-label="Toggle idle reminder"
+                onCheckedChange={(value) => updateConfig({ idleReminderEnabled: value })}
+              />
+            </div>
+            {config.idleReminderEnabled && (
+              <label className="flex items-center justify-between gap-3 text-xs font-black uppercase tracking-[0.12em] text-muted-foreground">
+                <span className="text-foreground">Minutes before reminder</span>
+                <Input
+                  type="number"
+                  min={MIN_REMINDER_MINUTES}
+                  max={MAX_REMINDER_MINUTES}
+                  step={1}
+                  value={minutesDraft.idleReminderMinutes}
+                  onChange={handleMinutesChange("idleReminderMinutes")}
+                  onBlur={handleMinutesBlur("idleReminderMinutes")}
+                  aria-label="Minutes before reminder"
+                  className="neo-mono w-20"
+                />
+              </label>
+            )}
+          </div>
+        </div>
+
         <div className="neo-panel">
           <div className="flex items-center justify-between gap-4">
             <div className="space-y-1">

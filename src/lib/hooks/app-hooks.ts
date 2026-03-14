@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { DEFAULT_AMBIENT_VOLUMES, type AmbientSound } from "@/lib/ambient";
-import { DEFAULT_BREAK_MINUTES, DEFAULT_FOCUS_MINUTES, clampTimerMinutes } from "@/lib/pomodoro";
+import {
+  DEFAULT_BREAK_MINUTES,
+  DEFAULT_FOCUS_MINUTES,
+  DEFAULT_REMINDER_MINUTES,
+  clampReminderMinutes,
+  clampTimerMinutes
+} from "@/lib/pomodoro";
 import type { AppConfig } from "@/shared/electron-contract";
 
 export type { AppConfig } from "@/shared/electron-contract";
@@ -10,7 +16,9 @@ const DEFAULT_CONFIG: AppConfig = {
   audioLanguage: "jp",
   ambientVolumes: { ...DEFAULT_AMBIENT_VOLUMES },
   focusMinutes: DEFAULT_FOCUS_MINUTES,
-  breakMinutes: DEFAULT_BREAK_MINUTES
+  breakMinutes: DEFAULT_BREAK_MINUTES,
+  idleReminderEnabled: true,
+  idleReminderMinutes: DEFAULT_REMINDER_MINUTES
 };
 
 const mergeAmbientVolumes = (volumes?: Partial<Record<AmbientSound, number>>) => ({
@@ -23,6 +31,7 @@ const normalizeConfig = (value?: Partial<AppConfig>): AppConfig => ({
   ...value,
   focusMinutes: clampTimerMinutes(value?.focusMinutes ?? DEFAULT_FOCUS_MINUTES),
   breakMinutes: clampTimerMinutes(value?.breakMinutes ?? DEFAULT_BREAK_MINUTES),
+  idleReminderMinutes: clampReminderMinutes(value?.idleReminderMinutes ?? DEFAULT_REMINDER_MINUTES),
   ambientVolumes: mergeAmbientVolumes(value?.ambientVolumes)
 });
 
@@ -63,6 +72,9 @@ export const useAppConfig = () => {
       }
       if (value.breakMinutes !== undefined) {
         sanitized.breakMinutes = clampTimerMinutes(value.breakMinutes);
+      }
+      if (value.idleReminderMinutes !== undefined) {
+        sanitized.idleReminderMinutes = clampReminderMinutes(value.idleReminderMinutes);
       }
       setConfig((prev) => {
         const nextAmbient = sanitized.ambientVolumes
